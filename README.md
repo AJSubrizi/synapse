@@ -1,5 +1,7 @@
 # Agent Brain Runtime
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Persistent memory for AI coding agents.
 
 Agent Brain Runtime gives Codex, Claude, Gemini, OpenCode, Cursor Agent, and other
