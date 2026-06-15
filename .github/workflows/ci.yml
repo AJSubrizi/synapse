@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate vault (links + frontmatter)
+        run: python3 templates/vault/_meta/validate.py
+
+      - name: ShellCheck shell scripts
+        run: shellcheck install.sh uninstall.sh scripts/install-agent-wrapper.sh bin/brain
+
+      - name: Smoke test install + doctor
+        run: |
+          tmp="$(mktemp -d)"
+          env HOME="$tmp" PREFIX="$tmp/.local/bin" BRAIN_HOME="$tmp/AI-Brain" \
+              SHELL_RC="$tmp/.bashrc" bash ./install.sh
+          env HOME="$tmp" "$tmp/.local/bin/brain" doctor
