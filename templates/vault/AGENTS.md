@@ -17,6 +17,8 @@ This vault is the long-term memory for AI agents.
 3. Add at least one `[[wikilink]]` to an existing page.
 4. Update `index.md`, `hot.md`, and `log.md`.
 5. Run `python3 _meta/validate.py`.
+6. Periodically run `python3 _meta/dedup.py` and merge or cross-link any flagged
+   duplicate pairs (the detector only suggests; you decide and merge).
 
 ## Categories
 
