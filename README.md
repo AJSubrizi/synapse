@@ -40,6 +40,7 @@ This gives you a ready-to-use starter vault with:
 - `log.md` — append-only operation log.
 - `_meta/workflow.md` — the read-before/write-after protocol.
 - `_meta/validate.py` — quality gate for links and frontmatter.
+- `_meta/dedup.py` — deterministic near-duplicate detector.
 - folders like `concepts/`, `references/`, `projects/`, `synthesis/`, `entities/`.
 
 ### Option B — Use an Existing Vault
@@ -62,6 +63,7 @@ vault/
     workflow.md
     taxonomy.md
     validate.py
+    dedup.py
 ```
 
 The important rule is simple: **the vault is the source of truth**. Agents should read
@@ -193,6 +195,7 @@ vault/
     workflow.md
     taxonomy.md
     validate.py
+    dedup.py
   concepts/
   references/
   synthesis/
@@ -210,6 +213,8 @@ vault/
 4. It works normally.
 5. At the end, it distills reusable knowledge into atomic notes.
 6. It runs `python3 "$BRAIN_VAULT/_meta/validate.py"`.
+7. Periodically, it runs `python3 "$BRAIN_VAULT/_meta/dedup.py"` to surface
+   near-duplicate notes, then merges or cross-links the flagged pairs.
 
 ## GUI Coverage
 
