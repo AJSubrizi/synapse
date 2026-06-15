@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1
 
 - `validate.py` now warns on knowledge rot in addition to integrity errors:
   orphan notes (no links in or out), notes missing from `index.md`, and
