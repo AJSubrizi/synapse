@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -u
+
+BRAIN_ROOT="${BRAIN_ROOT:-$HOME/AI-Brain}"
+BRAIN_VAULT="${BRAIN_VAULT:-$BRAIN_ROOT/vault}"
+BRAIN_BOOT="${BRAIN_BOOT:-$BRAIN_VAULT/AGENTS.md}"
+BRAIN_WORKFLOW="${BRAIN_WORKFLOW:-$BRAIN_VAULT/_meta/workflow.md}"
+BRAIN_GLOBAL_AGENTS="${BRAIN_GLOBAL_AGENTS:-$HOME/AGENTS.md}"
+
+export BRAIN_ROOT
+export BRAIN_VAULT
+export BRAIN_BOOT
+export BRAIN_WORKFLOW
+export BRAIN_GLOBAL_AGENTS
+export OBSIDIAN_VAULT_PATH="${OBSIDIAN_VAULT_PATH:-$BRAIN_VAULT}"
+export OBSIDIAN_WIKI_REPO="${OBSIDIAN_WIKI_REPO:-$BRAIN_ROOT}"
+export OBSIDIAN_LINK_FORMAT="${OBSIDIAN_LINK_FORMAT:-wikilink}"
+
+usage() {
+  cat <<'EOF'
+brain — persistent memory bootstrap for agentic CLIs
+
+Usage:
+  brain <cli> [args...]
+  brain doctor
+  brain env
+
+Examples:
+  brain codex
+  brain claude
+  brain opencode
+EOF
+}
+
+doctor() {
+  local rc=0
+  for path in "$BRAIN_BOOT" "$BRAIN_VAULT/index.md" "$BRAIN_VAULT/_meta/workflow.md" "$BRAIN_GLOBAL_AGENTS"; do
+    if [[ -f "$path" ]]; then
+      printf 'ok   %s\n' "$path"
+    else
+      printf 'miss %s\n' "$path"
+      rc=1
+    fi
+  done
+  return "$rc"
+}
+
+case "${1:-}" in
+  ""|-h|--help)
+    usage
+    exit 0
+    ;;
+  doctor)
+    doctor
+    exit $?
+    ;;
+  env)
+    printf 'BRAIN_ROOT=%s\n' "$BRAIN_ROOT"
+    printf 'BRAIN_VAULT=%s\n' "$BRAIN_VAULT"
+    printf 'BRAIN_BOOT=%s\n' "$BRAIN_BOOT"
+    printf 'BRAIN_WORKFLOW=%s\n' "$BRAIN_WORKFLOW"
+    printf 'BRAIN_GLOBAL_AGENTS=%s\n' "$BRAIN_GLOBAL_AGENTS"
+    printf 'OBSIDIAN_VAULT_PATH=%s\n' "$OBSIDIAN_VAULT_PATH"
+    printf 'OBSIDIAN_WIKI_REPO=%s\n' "$OBSIDIAN_WIKI_REPO"
+    printf 'OBSIDIAN_LINK_FORMAT=%s\n' "$OBSIDIAN_LINK_FORMAT"
+    exit 0
+    ;;
+esac
+
+cmd="$1"
+shift
+
+if ! command -v -- "$cmd" >/dev/null 2>&1; then
+  printf 'brain: command not found: %s\n' "$cmd" >&2
+  exit 127
+fi
+
+if [[ "${BRAIN_ACTIVE:-0}" != "1" && "${BRAIN_QUIET:-0}" != "1" ]]; then
+  printf 'brain: loaded vault %s\n' "$BRAIN_VAULT" >&2
+fi
+
+export BRAIN_ACTIVE=1
+
+exec "$cmd" "$@"

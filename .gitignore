@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+tmp/
+.env
+
+# Local editor/agent settings — must not ship to clones
+.claude/settings.local.json
+
