@@ -1,15 +1,46 @@
-# Agent Brain Runtime
+# Agent Brain Runtime — Persistent Memory for AI Coding Agents
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Shell](https://img.shields.io/badge/shell-bash%20%7C%20zsh-89e051.svg)](#install)
+[![Obsidian compatible](https://img.shields.io/badge/Obsidian-compatible-7c3aed.svg)](https://obsidian.md)
+[![Works with Claude · Codex · Gemini · OpenCode](https://img.shields.io/badge/works%20with-Claude%20·%20Codex%20·%20Gemini%20·%20OpenCode-2563eb.svg)](#supported-agents)
 
-Persistent memory for AI coding agents.
+> **Give your AI coding agents long-term memory.** Agent Brain Runtime is an
+> open-source, shell-native knowledge base that lets Claude Code, Codex, Gemini CLI,
+> OpenCode, Cursor Agent, and any agentic CLI **read project context before work and
+> save what they learn after** — using a portable, Obsidian-compatible Markdown vault.
 
-Agent Brain Runtime gives Codex, Claude, Gemini, OpenCode, Cursor Agent, and other
-agentic CLIs a shared Obsidian-compatible knowledge base. Agents read the brain before
-work, then distill reusable knowledge back into the vault after meaningful work.
+**Agent Brain Runtime** is a lightweight persistent-memory layer for AI coding agents.
+Instead of starting every session from zero, your agents load a shared **Obsidian vault**
+(plain Markdown + `[[wikilinks]]`) as long-term memory, then distill reusable knowledge
+back into it after meaningful work. No database, no cloud service, no lock-in — just
+portable files and shell scripts.
 
 It pairs especially well with [RTK](https://github.com/rtk-ai/rtk): RTK compresses
-command output; Agent Brain Runtime keeps long-term project knowledge.
+command output to save tokens in the short term; Agent Brain Runtime preserves
+project knowledge across sessions for the long term.
+
+## Contents
+
+- [Why persistent memory for AI agents?](#why)
+- [Supported agents](#supported-agents)
+- [Create your Obsidian vault](#first-create-your-obsidian-vault)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [How it works](#how-it-works)
+- [FAQ](#faq)
+
+## Supported Agents
+
+Agent Brain Runtime is **agent-agnostic**. It works with any AI coding CLI that can read
+instructions or inherit environment variables, including:
+
+- **Claude Code** (Anthropic)
+- **Codex** (OpenAI)
+- **Gemini CLI** (Google)
+- **OpenCode**
+- **Cursor Agent**
+- any other agentic CLI or AI coding assistant on your machine
 
 ## First: Create Your Obsidian Vault
 
@@ -233,7 +264,49 @@ configure the GUI command path to point to `~/.local/bin/<tool>` or use `brain <
 The uninstaller removes the shim and global boot files. It does not delete your vault
 unless you pass `--delete-vault`.
 
+## FAQ
+
+### What is Agent Brain Runtime?
+
+Agent Brain Runtime is an open-source persistent-memory layer for AI coding agents. It
+gives CLIs like Claude Code, Codex, Gemini, and OpenCode a shared, Obsidian-compatible
+Markdown knowledge base (a "vault") that they read before working and write to afterward,
+so context and lessons survive across sessions.
+
+### How do I give an AI coding agent long-term memory?
+
+Point the agent at a persistent knowledge base it reads before acting and updates after.
+Agent Brain Runtime does this with a portable shell shim (`brain`) plus an Obsidian vault:
+run `./install.sh`, then launch your agent through the brain (`brain codex`, `brain claude`).
+
+### Does it work with Claude Code, Codex, Gemini, and OpenCode?
+
+Yes. It is agent-agnostic and works with any agentic CLI that can read instructions or
+inherit environment variables. See [Supported agents](#supported-agents).
+
+### Do I need Obsidian or a database?
+
+No database and no cloud service are required. The vault is just Markdown files; Obsidian
+is optional and only used to browse the knowledge graph visually.
+
+### Is it free and open source?
+
+Yes — MIT licensed. See the [LICENSE](LICENSE).
+
+### How is this different from RAG or a vector database?
+
+Agent Brain Runtime is intentionally simple: human-readable Markdown notes linked with
+`[[wikilinks]]`, validated by a quality gate, with no embeddings or external services.
+It complements heavier retrieval setups rather than replacing them.
+
 ## Status
 
-This is a lightweight, shell-native starter kit. It is intentionally simple:
-Markdown, Obsidian links, portable shell scripts, and clear agent instructions.
+This is a lightweight, shell-native starter kit for **AI agent memory**. It is
+intentionally simple: Markdown, Obsidian links, portable shell scripts, and clear agent
+instructions — easy to read, audit, and extend.
+
+## Keywords
+
+Persistent memory for AI coding agents · AI agent long-term memory · Claude Code memory ·
+Codex / Gemini / OpenCode knowledge base · Obsidian vault for AI agents · agentic CLI
+context · shared knowledge base for LLM agents.
