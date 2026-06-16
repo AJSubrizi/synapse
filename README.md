@@ -28,6 +28,7 @@ project knowledge across sessions for the long term.
 - [Install](#install)
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
+- [Token cost](#token-cost)
 - [FAQ](#faq)
 
 ## Supported Agents
@@ -192,6 +193,29 @@ The wrapper exports:
 
 It does not intercept normal developer commands like `git`, `npm`, or `python`.
 Only agentic CLIs should run through the brain.
+
+## Token Cost
+
+How much context does loading the brain actually consume? Below is a real measurement
+on a **56-page vault** (~4 chars/token estimate). Your numbers scale with vault size.
+
+| What | Tokens | When |
+|------|-------:|------|
+| Enforcement injection (session header) | ~150–250 | once per session (+ per subagent) |
+| Boot chain — global + vault `AGENTS.md` + `index.md` | ~3,200 | once per session |
+| Selective reads — 1–3 relevant pages | ~1,200–3,500 | per task |
+| **Typical brain-aware session** | **~5,000–7,000** | **~3–4% of a 200k window** |
+| Reading the *entire* vault (anti-pattern) | ~39,000 | avoid — this is what the protocol prevents |
+
+Takeaways:
+
+- **The enforcement is the cheapest part** (~200 tokens). The cost is dominated by the
+  `AGENTS.md` manual plus `index.md`.
+- **The `index → summaries → selective bodies` recipe is the cost control.** Reading
+  only what's relevant keeps a session at ~5–7k instead of ~39k.
+- **`index.md` grows linearly** with the vault. When it gets large, split knowledge into
+  per-domain maps (the `synthesis/` MOCs) so agents load only the relevant hub.
+- With prompt caching, a stable boot chain re-read within the cache window is nearly free.
 
 ## Recommended With RTK
 

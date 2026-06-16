@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- README: added a **Token Cost** section with a measured per-session breakdown
+  (~5–7k tokens on a 56-page vault) and how it scales.
+
 - `brain reinit`: idempotently rewrites the marked shell-rc block with current paths
   (strip-then-append), so re-running install or changing `BRAIN_VAULT` no longer leaves
   stale exports behind. `install.sh` now delegates the rc block to `brain reinit` as the
