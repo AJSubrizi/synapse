@@ -1,7 +1,6 @@
-# GEMINI.md — Agent Brain Bootstrap
+# GEMINI.md — Synapse bootstrap
 
 Read and follow `~/AGENTS.md`.
 
-Before planning or editing, load `$BRAIN_VAULT/index.md` and the relevant vault notes.
-After meaningful work, distill reusable knowledge back into the vault.
-
+Before any project action, load the vault per `$BRAIN_VAULT/_meta/workflow.md`.
+After meaningful work, distill into the vault. Run `synapse check` if vault files changed.

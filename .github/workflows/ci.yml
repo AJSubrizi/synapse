@@ -15,11 +15,12 @@ jobs:
         run: python3 templates/vault/_meta/validate.py
 
       - name: ShellCheck shell scripts
-        run: shellcheck install.sh uninstall.sh scripts/install-agent-wrapper.sh bin/brain
+        run: shellcheck install.sh uninstall.sh scripts/install-agent-wrapper.sh bin/synapse templates/vault/_meta/hooks/*.sh
 
       - name: Smoke test install + doctor
         run: |
           tmp="$(mktemp -d)"
-          env HOME="$tmp" PREFIX="$tmp/.local/bin" BRAIN_HOME="$tmp/AI-Brain" \
+          env HOME="$tmp" PREFIX="$tmp/.local/bin" SYNAPSE_HOME="$tmp/Synapse" \
               SHELL_RC="$tmp/.bashrc" bash ./install.sh
-          env HOME="$tmp" "$tmp/.local/bin/brain" doctor
+          env HOME="$tmp" "$tmp/.local/bin/synapse" doctor
+          test -x "$tmp/.local/bin/brain"

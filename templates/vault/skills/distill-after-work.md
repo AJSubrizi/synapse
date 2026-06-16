@@ -2,7 +2,7 @@
 title: distill-after-work
 category: skills
 tags: [skills, workflow]
-sources: [agent-brain-runtime]
+sources: [synapse]
 summary: After meaningful work, turn what was learned into atomic vault notes, cross-link them, update the catalog, and validate.
 created: 2026-01-01T00:00:00Z
 updated: 2026-01-01T00:00:00Z

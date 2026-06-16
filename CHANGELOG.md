@@ -2,48 +2,20 @@
 
 ## Unreleased
 
-- **Rated skills library** — the differentiator from opaque memory stores. Skills are
-  Markdown procedures with a frontmatter scorecard (`uses`, `score` 1–5, `votes`,
-  `last_used`). New `brain skill list | use | rate | show` (engine: `_meta/skill.py`)
-  lets agents record use and anyone vote on quality; the library ranks itself, with an
-  append-only `skills/_ratings.log` for provenance. Ships an example skill and documents
-  the scorecard in the vault manual and workflow.
+## 0.2.0 — Synapse
 
-- README: added a **Token Cost** section with a measured per-session breakdown
-  (~5–7k tokens on a 56-page vault) and how it scales.
-
-- `brain reinit`: idempotently rewrites the marked shell-rc block with current paths
-  (strip-then-append), so re-running install or changing `BRAIN_VAULT` no longer leaves
-  stale exports behind. `install.sh` now delegates the rc block to `brain reinit` as the
-  single source of truth.
-- `brain check`: read-only quality gate that runs `validate.py` (gating) plus
-  `dedup.py` (informational) without writing to the vault. Made the standard last
-  step of the distillation phase in `workflow.md`; `brain status` is now the first
-  step before work.
-- `validate.py` now warns on tags not present in `_meta/taxonomy.md` (canonical tags =
-  backticked tokens; aliases included). Skipped gracefully when no taxonomy file exists.
-- Observability: `brain` now always exports `BRAIN_LOADED=1` inside a loaded session,
-  plus `BRAIN_SESSION_ID` (provenance), `BRAIN_VAULT_HASH` (staleness), and
-  `BRAIN_SKILLS_DIR`. New `brain status` (active? vault, session, staleness) and
-  `brain which <cmd>` (what a command resolves to, and whether brain wraps it). The
-  run banner now shows the vault and session id.
-- Vault manual documents the runtime-vs-skills boundary and `$BRAIN_SKILLS_DIR`.
+- **Rename** project and GitHub repo to **Synapse** (formerly Agent Brain Runtime).
+- **CLI** `synapse`; `brain` installed as symlink for compatibility.
+- **Default home** `~/Synapse` (was `~/AI-Brain`); `SYNAPSE_HOME` env var.
+- Shell-rc block marker `# >>> Synapse >>>` (strips legacy Agent Brain Runtime block).
+- Workflow template: Phase 0-short, meaningful work, staleness, subagents, index >80 rule.
+- Hook templates: `session-enforce.sh`, `stop-check.sh`.
+- Docs: [CUSTOM-LAYOUT.md](docs/CUSTOM-LAYOUT.md) for monorepo / external skills (no bundled skill library).
 
 ## 0.1.1
 
-- `validate.py` now warns on knowledge rot in addition to integrity errors:
-  orphan notes (no links in or out), notes missing from `index.md`, and
-  `category` frontmatter that does not match the folder. Warnings do not fail CI.
-- Added `_meta/dedup.py`: a deterministic, dependency-free near-duplicate
-  detector. It flags candidate duplicate notes (by title/summary/tag/body
-  similarity) for a human or agent to review and merge — it never merges itself.
-  Supports `--threshold` and `--strict` (exit 1 on candidates, for optional CI).
+- `validate.py` knowledge-rot warnings; `_meta/dedup.py`.
 
 ## 0.1.0
 
-- Initial public starter kit.
-- Added `brain` shim.
-- Added vault skeleton.
-- Added global AGENTS/CLAUDE/GEMINI templates.
-- Added RTK recommendation docs.
-
+- Initial public starter kit as Agent Brain Runtime.

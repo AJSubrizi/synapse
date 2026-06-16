@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${PREFIX:-$HOME/.local/bin}"
-BRAIN_HOME="${BRAIN_HOME:-$HOME/AI-Brain}"
+BRAIN_HOME="${BRAIN_HOME:-${SYNAPSE_HOME:-$HOME/Synapse}}"
 BRAIN_ROOT="${BRAIN_ROOT:-$BRAIN_HOME}"
 BRAIN_VAULT="${BRAIN_VAULT:-$BRAIN_ROOT/vault}"
 case "${SHELL:-}" in
@@ -23,8 +23,9 @@ copy_if_missing() {
   fi
 }
 
-cp "$REPO_DIR/bin/brain" "$PREFIX/brain"
-chmod +x "$PREFIX/brain"
+cp "$REPO_DIR/bin/synapse" "$PREFIX/synapse"
+chmod +x "$PREFIX/synapse"
+ln -sf synapse "$PREFIX/brain"
 
 if [ ! -d "$BRAIN_VAULT" ]; then
   mkdir -p "$BRAIN_ROOT"
@@ -33,6 +34,7 @@ fi
 
 mkdir -p \
   "$BRAIN_VAULT/_meta" \
+  "$BRAIN_VAULT/_meta/hooks" \
   "$BRAIN_VAULT/concepts" \
   "$BRAIN_VAULT/references" \
   "$BRAIN_VAULT/synthesis" \
@@ -50,23 +52,24 @@ copy_if_missing "$REPO_DIR/templates/vault/_meta/taxonomy.md" "$BRAIN_VAULT/_met
 copy_if_missing "$REPO_DIR/templates/vault/_meta/validate.py" "$BRAIN_VAULT/_meta/validate.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/dedup.py" "$BRAIN_VAULT/_meta/dedup.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/skill.py" "$BRAIN_VAULT/_meta/skill.py"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/stop-check.sh"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/session-enforce.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh"
 copy_if_missing "$REPO_DIR/templates/vault/concepts/workflow.md" "$BRAIN_VAULT/concepts/workflow.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/distill-after-work.md" "$BRAIN_VAULT/skills/distill-after-work.md"
 chmod +x "$BRAIN_VAULT/_meta/validate.py" "$BRAIN_VAULT/_meta/dedup.py" "$BRAIN_VAULT/_meta/skill.py"
+chmod +x "$BRAIN_VAULT/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh" 2>/dev/null || true
 
 copy_if_missing "$REPO_DIR/templates/AGENTS.md" "$HOME/AGENTS.md"
 copy_if_missing "$REPO_DIR/templates/CLAUDE.md" "$HOME/CLAUDE.md"
 copy_if_missing "$REPO_DIR/templates/GEMINI.md" "$HOME/GEMINI.md"
 
-# Idempotently (re)write the shell-rc block via the shim itself — single source of
-# truth, and safe to re-run after changing BRAIN_VAULT (no stale exports left behind).
 BRAIN_ROOT="$BRAIN_ROOT" BRAIN_VAULT="$BRAIN_VAULT" SHELL_RC="$SHELL_RC" \
-  "$PREFIX/brain" reinit >/dev/null
+  "$PREFIX/synapse" reinit >/dev/null
 
-echo "Agent Brain Runtime installed."
-echo "Brain root:  $BRAIN_ROOT"
-echo "Brain vault: $BRAIN_VAULT"
-echo "Shim:        $PREFIX/brain"
+echo "Synapse installed."
+echo "Home:   $BRAIN_ROOT"
+echo "Vault:  $BRAIN_VAULT"
+echo "CLI:    $PREFIX/synapse (brain -> synapse symlink)"
 
 if [ "${INSTALL_AGENT_WRAPPERS:-0}" = "1" ]; then
   for name in codex opencode claude gemini; do
@@ -78,4 +81,4 @@ fi
 
 echo
 echo "Open a new terminal, then run:"
-echo "  brain doctor"
+echo "  synapse doctor"

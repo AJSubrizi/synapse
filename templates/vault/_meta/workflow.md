@@ -1,28 +1,53 @@
 # Workflow
 
-Read the brain before work. Distill into the brain after work.
+Read the vault before work. Distill into the vault after **meaningful work**.
 
-## Phase 0 — Before Work
+## Phase 0 — Before work (required)
 
-1. Confirm the brain is loaded: run `brain status` (expect `ACTIVE`, not stale).
-2. Open `index.md`.
-3. Open the relevant synthesis or concept notes.
-4. Check whether the topic already exists.
+Choose **Phase 0** (default) or **Phase 0-short** for trivial tasks.
 
-## Phase 1 — During Work
+### Phase 0 (full)
 
-1. Apply the loaded notes.
-2. When you apply a skill, record it: `brain skill use <name>` (and
-   `brain skill rate <name> <1-5>` if you can judge how well it worked).
-3. Capture non-obvious discoveries.
-4. Cite pages as `[[page-name]]`.
+1. `synapse status` (or `brain status`) — expect `ACTIVE`; if not, load vault paths manually.
+2. Open `AGENTS.md`, `hot.md`, and `index.md`. If **index has >80 entries**, read only the
+   relevant `synthesis/` hub plus targeted `grep`, not the full index.
+3. Load pertinent notes (`summary:` first, body only if needed).
+4. Check whether the topic already exists; reuse instead of reinventing.
+
+### Phase 0-short (trivial tasks only)
+
+For typos, formatting, or purely executional work with complete user instructions:
+
+1. `synapse status` (or load paths manually if `NOT active`).
+2. Read `hot.md` + targeted `grep` in the vault.
+3. Skip hubs/MOC and full `index.md`.
+
+## Phase 1 — During work
+
+1. Apply loaded notes; cite pages as `[[page-name]]`.
+2. If `synapse status` shows **STALE** hash, re-read `hot.md` and domain notes.
+3. After applying a skill: `synapse skill use <name>` (+ `rate` if you can judge quality).
+4. Capture non-obvious discoveries.
+
+### Subagents
+
+Every subagent prompt must include: vault path, 1–3 relevant pages/hubs, and the
+meaningful-work distillation rule from this file.
+
+## Meaningful work — when to distill
+
+**Distill** if at least one applies: new pattern/architectural decision; non-obvious
+problem solved; knowledge not already in the vault; project/infra setup; skill outcome
+worth remembering.
+
+**Skip** for: typos/formatting; answer already in vault; purely executional tasks.
 
 ## Phase 2 — Distillation
 
-1. Split knowledge into atomic notes.
-2. Classify each note.
-3. Cross-link it.
-4. Update `index.md`, `hot.md`, and `log.md`.
-5. Run `brain check` (validate + dedup, read-only) — or `python3 _meta/validate.py`
-   directly. Resolve errors before finishing; review any duplicate candidates.
+1. Split knowledge into atomic notes; classify; cross-link.
+2. Update `index.md`, `hot.md`, and `log.md`.
+3. Run `synapse check` (or `python3 _meta/validate.py`) — **0 errors**; review dedup candidates.
 
+## Session close
+
+If you **modified files under the vault** this session, run `synapse check` before finishing.
