@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `brain check`: read-only quality gate that runs `validate.py` (gating) plus
+  `dedup.py` (informational) without writing to the vault. Made the standard last
+  step of the distillation phase in `workflow.md`; `brain status` is now the first
+  step before work.
+- `validate.py` now warns on tags not present in `_meta/taxonomy.md` (canonical tags =
+  backticked tokens; aliases included). Skipped gracefully when no taxonomy file exists.
 - Observability: `brain` now always exports `BRAIN_LOADED=1` inside a loaded session,
   plus `BRAIN_SESSION_ID` (provenance), `BRAIN_VAULT_HASH` (staleness), and
   `BRAIN_SKILLS_DIR`. New `brain status` (active? vault, session, staleness) and

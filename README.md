@@ -213,6 +213,7 @@ across sessions.
 
 ```bash
 brain status       # is the brain active here? vault, session id, staleness
+brain check        # read-only quality gate: validate + dedup (no writes)
 brain doctor       # verify boot files exist
 brain which codex  # show what a command resolves to (and if brain wraps it)
 brain env          # print brain environment

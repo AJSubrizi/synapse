@@ -36,6 +36,7 @@ brain — persistent memory bootstrap for agentic CLIs
 Usage:
   brain <cli> [args...]   run an agent CLI with the brain environment loaded
   brain status            is the brain active here? vault, session, staleness
+  brain check             read-only quality gate: validate + dedup (no writes)
   brain doctor            verify boot files exist
   brain which <cmd>       show what <cmd> resolves to (and if brain wraps it)
   brain env               print the brain environment
@@ -78,6 +79,28 @@ status() {
   doctor
 }
 
+check() {
+  # Read-only distillation gate. validate.py errors gate the exit code; dedup
+  # candidates are informational. Neither writes to the vault.
+  local v="$BRAIN_VAULT/_meta/validate.py" d="$BRAIN_VAULT/_meta/dedup.py" rc=0
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'brain: python3 not found; cannot run check\n' >&2
+    return 2
+  fi
+  if [[ -f "$v" ]]; then
+    printf '== validate ==\n'
+    python3 "$v" || rc=$?
+  else
+    printf 'brain: no validate.py at %s\n' "$v" >&2
+    rc=1
+  fi
+  if [[ -f "$d" ]]; then
+    printf '\n== dedup (candidates) ==\n'
+    python3 "$d" || true
+  fi
+  return "$rc"
+}
+
 which_cmd() {
   local c="${1:-}" p
   if [[ -z "$c" ]]; then
@@ -105,6 +128,10 @@ case "${1:-}" in
   status)
     status
     exit 0
+    ;;
+  check)
+    check
+    exit $?
     ;;
   doctor)
     doctor

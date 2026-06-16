@@ -4,9 +4,10 @@ Read the brain before work. Distill into the brain after work.
 
 ## Phase 0 — Before Work
 
-1. Open `index.md`.
-2. Open the relevant synthesis or concept notes.
-3. Check whether the topic already exists.
+1. Confirm the brain is loaded: run `brain status` (expect `ACTIVE`, not stale).
+2. Open `index.md`.
+3. Open the relevant synthesis or concept notes.
+4. Check whether the topic already exists.
 
 ## Phase 1 — During Work
 
@@ -20,5 +21,6 @@ Read the brain before work. Distill into the brain after work.
 2. Classify each note.
 3. Cross-link it.
 4. Update `index.md`, `hot.md`, and `log.md`.
-5. Run `_meta/validate.py`.
+5. Run `brain check` (validate + dedup, read-only) — or `python3 _meta/validate.py`
+   directly. Resolve errors before finishing; review any duplicate candidates.
 

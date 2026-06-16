@@ -7,9 +7,22 @@ import re
 import sys
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TAXONOMY = os.path.join(VAULT, "_meta", "taxonomy.md")
 CONTENT_DIRS = ("concepts", "references", "synthesis", "skills", "projects", "journal", "entities")
 REQUIRED = ("title", "category", "tags", "sources", "summary", "created", "updated")
 SPECIAL = {"index", "log", "hot", "AGENTS"}
+
+
+def load_taxonomy_tags() -> set[str]:
+    """Canonical tags = every backticked token in taxonomy.md (covers aliases too)."""
+    if not os.path.isfile(TAXONOMY):
+        return set()
+    text = open(TAXONOMY, encoding="utf-8").read()
+    return {t.strip().lower() for t in re.findall(r"`([^`]+)`", text) if t.strip()}
+
+
+def parse_tags(raw: str) -> list[str]:
+    return [t.strip().lower() for t in raw.strip("[] ").split(",") if t.strip()]
 
 
 def parse_frontmatter(text: str) -> dict[str, str] | None:
@@ -81,6 +94,7 @@ def main() -> int:
         content_notes.append((rel, stem, fm))
 
     # Warn (don't fail) on knowledge rot: the failure modes of auto-distilled vaults.
+    known_tags = load_taxonomy_tags()
     for rel, stem, fm in content_notes:
         if not outgoing.get(stem) and not incoming.get(stem):
             warnings.append(f"{rel}: orphan note (no links in or out) — cross-link it")
@@ -92,6 +106,12 @@ def main() -> int:
             warnings.append(
                 f"{rel}: category '{category}' does not match folder '{folder}'"
             )
+        if known_tags:
+            for tag in parse_tags((fm or {}).get("tags", "")):
+                if tag not in known_tags:
+                    warnings.append(
+                        f"{rel}: unknown tag '{tag}' (not in _meta/taxonomy.md)"
+                    )
 
     print(f"Pages analyzed: {len(files)}")
     print(f"Errors: {len(errors)} | Warnings: {len(warnings)}")
