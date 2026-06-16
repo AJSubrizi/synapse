@@ -1,15 +1,14 @@
-# AGENTS.md — Agent Brain Bootstrap
+# AGENTS.md — Synapse bootstrap
 
-Read the vault before meaningful work.
+Read the vault before meaningful work (all task types: coding, design, debug, knowledge).
 
-1. Open `$BRAIN_VAULT/AGENTS.md`.
-2. Open `$BRAIN_VAULT/index.md`.
-3. Choose relevant notes and use them as context.
-4. At the end, distill reusable knowledge back into the vault.
-5. Run `python3 "$BRAIN_VAULT/_meta/validate.py"`.
+1. Open `$BRAIN_VAULT/AGENTS.md` and `$BRAIN_VAULT/index.md` (or Phase 0-short per workflow).
+2. Choose relevant notes; use `summary:` before full bodies.
+3. After **meaningful work**, distill reusable knowledge into the vault.
+4. Run `synapse check` (or `python3 "$BRAIN_VAULT/_meta/validate.py"`).
 
-Recommended:
+**Meaningful work** = new pattern/decision, non-obvious fix, knowledge not in vault, infra
+setup, or skill outcome worth remembering. Skip distillation for typos and purely
+executional tasks.
 
-- Use RTK for shell commands when available.
-- Use the brain for planning, editing, and project decisions.
-
+Recommended: RTK for shell commands; Synapse before planning, editing, or project output.

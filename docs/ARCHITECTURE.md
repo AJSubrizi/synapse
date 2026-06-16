@@ -1,29 +1,26 @@
 # Architecture
 
-Agent Brain Runtime has three layers.
+Synapse has three layers.
 
 ## 1. Raw Sources
 
-Projects, docs, conversations, logs, and external sources. These are not rewritten by
-the brain. They are evidence.
+Projects, docs, conversations, logs, and external sources. Evidence — not rewritten by the vault.
 
 ## 2. Vault
 
-The compiled knowledge base. Markdown files with frontmatter and `[[wikilinks]]`.
-This is the long-term memory.
+Compiled knowledge base: Markdown, frontmatter, `[[wikilinks]]`. Long-term memory.
 
 ## 3. Runtime
 
-Shell wrapper, global agent files, and workflow rules that make agents load the vault.
+`synapse` shim, global agent files, workflow rules that make agents load the vault.
 
 ```text
-project -> agent -> brain shim -> vault notes -> work -> distilled notes
+project -> agent -> synapse -> vault notes -> work -> distilled notes
 ```
 
 ## Design Goals
 
 - Portable: plain files and shell scripts.
-- Agent-agnostic: works with any CLI that can read instructions or inherit env.
-- Obsidian-compatible: no database required.
+- Agent-agnostic.
+- Obsidian-compatible.
 - Conservative: do not intercept normal developer commands.
-

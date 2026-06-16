@@ -11,7 +11,12 @@ if [ -z "$NAME" ]; then
   exit 2
 fi
 
-mkdir -p "$PREFIX/.brain-real"
+mkdir -p "$PREFIX/.synapse-real"
+REAL_STORE="$PREFIX/.synapse-real"
+# migrate legacy store
+if [ -d "$PREFIX/.brain-real" ] && [ ! -d "$REAL_STORE" ]; then
+  mv "$PREFIX/.brain-real" "$REAL_STORE"
+fi
 
 if [ -z "$REAL_PATH" ]; then
   REAL_PATH="$(command -v "$NAME" || true)"
@@ -23,8 +28,8 @@ if [ -z "$REAL_PATH" ]; then
 fi
 
 if [ "$REAL_PATH" = "$PREFIX/$NAME" ]; then
-  if [ -e "$PREFIX/.brain-real/$NAME" ]; then
-    REAL_PATH="$PREFIX/.brain-real/$NAME"
+  if [ -e "$PREFIX/.synapse-real/$NAME" ]; then
+    REAL_PATH="$PREFIX/.synapse-real/$NAME"
   else
     echo "$PREFIX/$NAME already exists and no preserved real binary was found." >&2
     echo "Pass the real path explicitly." >&2
@@ -33,25 +38,27 @@ if [ "$REAL_PATH" = "$PREFIX/$NAME" ]; then
 fi
 
 if [ -L "$PREFIX/$NAME" ]; then
-  ln -sfn "$(readlink "$PREFIX/$NAME")" "$PREFIX/.brain-real/$NAME"
+  ln -sfn "$(readlink "$PREFIX/$NAME")" "$PREFIX/.synapse-real/$NAME"
   rm "$PREFIX/$NAME"
 elif [ -e "$PREFIX/$NAME" ]; then
-  mv "$PREFIX/$NAME" "$PREFIX/.brain-real/$NAME"
+  mv "$PREFIX/$NAME" "$PREFIX/.synapse-real/$NAME"
 else
-  ln -sfn "$REAL_PATH" "$PREFIX/.brain-real/$NAME"
+  ln -sfn "$REAL_PATH" "$PREFIX/.synapse-real/$NAME"
 fi
 
 cat > "$PREFIX/$NAME" <<EOF
 #!/usr/bin/env bash
-# If brain already set up the environment (e.g. invoked via the shell alias),
-# skip the second pass and run the real command directly.
+# Synapse wrapper — skip second pass if env already loaded.
 if [[ "\${BRAIN_ACTIVE:-0}" == "1" ]]; then
   exec "$REAL_PATH" "\$@"
+fi
+if command -v "$PREFIX/synapse" >/dev/null 2>&1; then
+  exec "$PREFIX/synapse" "$REAL_PATH" "\$@"
 fi
 exec "$PREFIX/brain" "$REAL_PATH" "\$@"
 EOF
 
 chmod +x "$PREFIX/$NAME"
 
-echo "Installed brain wrapper: $PREFIX/$NAME -> $REAL_PATH"
+echo "Installed synapse wrapper: $PREFIX/$NAME -> $REAL_PATH"
 

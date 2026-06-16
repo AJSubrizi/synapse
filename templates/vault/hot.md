@@ -9,7 +9,7 @@ Short snapshot of current activity.
 
 ## Recent Activity
 
-- Initialized Agent Brain Runtime.
+- Initialized Synapse.
 
 ## Active Threads
 

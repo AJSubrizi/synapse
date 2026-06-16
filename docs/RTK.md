@@ -1,26 +1,13 @@
-# Using Agent Brain Runtime With RTK
+# Using Synapse With RTK
 
-RTK and Agent Brain Runtime solve different parts of the same problem.
+RTK and Synapse solve different parts of the same problem.
 
-- RTK reduces short-term token waste from shell output.
-- Agent Brain Runtime preserves long-term knowledge across sessions.
+- RTK compresses shell output (short-term context).
+- Synapse preserves long-term knowledge across sessions (vault).
 
-Recommended instruction for agents:
+Recommended:
 
 ```text
 Use rtk before shell commands when possible.
-Use the brain before planning, editing, or creating project output.
-After meaningful work, distill reusable knowledge into the vault.
+Use synapse before planning, editing, or creating project output.
 ```
-
-Example:
-
-```bash
-rtk git status
-rtk rg "TODO"
-rtk pytest -q
-brain codex
-```
-
-RTK project: https://github.com/rtk-ai/rtk
-

@@ -1,54 +1,20 @@
-# GitHub Setup
+# GitHub
 
-Suggested repository name:
+## Repository
 
-```text
-agent-brain-runtime
-```
+**Synapse** — `AJSubrizi/synapse` (formerly `agent-brain-runtime`).
 
-Alternative names:
-
-- `ai-brain-runtime`
-- `agent-memory-runtime`
-- `obsidian-agent-brain`
-- `codex-claude-brain`
-
-Recommended GitHub description:
-
-```text
-Persistent Obsidian memory for AI coding agents. Works with Codex, Claude, Gemini, OpenCode, and pairs well with RTK.
-```
-
-Recommended topics:
-
-```text
-ai-agents
-codex
-claude
-gemini
-opencode
-obsidian
-knowledge-base
-agent-memory
-developer-tools
-rtk
-```
-
-First publish:
+## Publish
 
 ```bash
-cd ~/Desktop/agent-brain-runtime
-git init
-git add .
-git commit -m "Initial Agent Brain Runtime"
-git branch -M main
-git remote add origin git@github.com:AJSubrizi/agent-brain-runtime.git
+cd ~/path/to/synapse
+git add -A
+git commit -m "Your message"
 git push -u origin main
 ```
 
-Recommended README badge later:
+## Rename remote after migration
 
-```markdown
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+```bash
+git remote set-url origin https://github.com/AJSubrizi/synapse.git
 ```
-

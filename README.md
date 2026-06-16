@@ -1,381 +1,138 @@
-# Agent Brain Runtime — Persistent Memory for AI Coding Agents
+# Synapse — Persistent Memory for AI Coding Agents
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Shell](https://img.shields.io/badge/shell-bash%20%7C%20zsh-89e051.svg)](#install)
 [![Obsidian compatible](https://img.shields.io/badge/Obsidian-compatible-7c3aed.svg)](https://obsidian.md)
-[![Works with Claude · Codex · Gemini · OpenCode](https://img.shields.io/badge/works%20with-Claude%20·%20Codex%20·%20Gemini%20·%20OpenCode-2563eb.svg)](#supported-agents)
 
-> **Give your AI coding agents long-term memory.** Agent Brain Runtime is an
-> open-source, shell-native knowledge base that lets Claude Code, Codex, Gemini CLI,
-> OpenCode, Cursor Agent, and any agentic CLI **read project context before work and
-> save what they learn after** — using a portable, Obsidian-compatible Markdown vault.
+> **Give your AI coding agents long-term memory.** Synapse is an open-source,
+> shell-native knowledge base: agents **read an Obsidian-compatible vault before work**
+> and **distill what they learn after** — plain Markdown, no database, no lock-in.
 
-**Agent Brain Runtime** is a lightweight persistent-memory layer for AI coding agents.
-Instead of starting every session from zero, your agents load a shared **Obsidian vault**
-(plain Markdown + `[[wikilinks]]`) as long-term memory, then distill reusable knowledge
-back into it after meaningful work. No database, no cloud service, no lock-in — just
-portable files and shell scripts.
-
-It is also a **rated skills library**: skills are human-readable Markdown procedures that
-carry a scorecard (usage count + a 1–5 quality score). Agents record each use, you (or
-the agent) vote on quality, and the library ranks itself — so proven skills rise to the
-top. Unlike opaque vector-store memory, every skill is readable, editable in Obsidian,
-and accountable for how well it actually works.
-
-It pairs especially well with [RTK](https://github.com/rtk-ai/rtk): RTK compresses
-command output to save tokens in the short term; Agent Brain Runtime preserves
-project knowledge across sessions for the long term.
+Synapse is a lightweight persistent-memory layer for agentic CLIs (Claude Code, Codex,
+Gemini, OpenCode, Cursor Agent, and others). It ships a rated **skills library** pattern
+(scorecards on Markdown procedures) and pairs well with [RTK](https://github.com/rtk-ai/rtk)
+(short-term token savings).
 
 ## Contents
 
-- [Why persistent memory for AI agents?](#why)
-- [Supported agents](#supported-agents)
-- [Create your Obsidian vault](#first-create-your-obsidian-vault)
 - [Install](#install)
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
-- [Skills library (rated)](#skills-library-rated)
+- [Commands](#commands)
+- [Skills library](#skills-library-rated)
 - [Token cost](#token-cost)
+- [Custom layouts](docs/CUSTOM-LAYOUT.md)
 - [FAQ](#faq)
-
-## Supported Agents
-
-Agent Brain Runtime is **agent-agnostic**. It works with any AI coding CLI that can read
-instructions or inherit environment variables, including:
-
-- **Claude Code** (Anthropic)
-- **Codex** (OpenAI)
-- **Gemini CLI** (Google)
-- **OpenCode**
-- **Cursor Agent**
-- any other agentic CLI or AI coding assistant on your machine
-
-## First: Create Your Obsidian Vault
-
-Agent Brain Runtime needs a vault first. The vault is the brain: a folder of Markdown
-files that Obsidian can open as a graph and that AI agents can read/write as long-term
-memory.
-
-You have two options.
-
-### Option A — Let the Installer Create One
-
-By default, the installer creates:
-
-```text
-~/AI-Brain/vault
-```
-
-Open Obsidian, choose **Open folder as vault**, and select:
-
-```text
-~/AI-Brain/vault
-```
-
-This gives you a ready-to-use starter vault with:
-
-- `index.md` — catalog of knowledge pages.
-- `hot.md` — recent activity snapshot.
-- `log.md` — append-only operation log.
-- `_meta/workflow.md` — the read-before/write-after protocol.
-- `_meta/validate.py` — quality gate for links and frontmatter.
-- `_meta/dedup.py` — deterministic near-duplicate detector.
-- folders like `concepts/`, `references/`, `projects/`, `synthesis/`, `entities/`.
-
-### Option B — Use an Existing Vault
-
-If you already have an Obsidian vault, point the installer to it:
-
-```bash
-BRAIN_HOME="$HOME/My-Brain" BRAIN_VAULT="$HOME/My-Brain/vault" ./install.sh
-```
-
-Your vault should contain at least:
-
-```text
-vault/
-  AGENTS.md
-  index.md
-  hot.md
-  log.md
-  _meta/
-    workflow.md
-    taxonomy.md
-    validate.py
-    dedup.py
-```
-
-The important rule is simple: **the vault is the source of truth**. Agents should read
-it before acting and distill reusable knowledge back into it after meaningful work.
-
-## Why
-
-Most AI coding sessions start from zero. The agent re-reads files, rediscovers
-patterns, forgets decisions, and loses useful lessons when the thread ends.
-
-Agent Brain Runtime makes the loop explicit:
-
-```text
-read vault -> work with context -> distill lessons -> grow the graph
-```
-
-Your Obsidian vault becomes the long-term memory. Agent CLIs remain temporary workers.
 
 ## Install
 
 ```bash
-git clone https://github.com/AJSubrizi/agent-brain-runtime.git
-cd agent-brain-runtime
+git clone https://github.com/AJSubrizi/synapse.git
+cd synapse
 ./install.sh
 ```
 
-Then open a new terminal and verify:
-
-```bash
-brain doctor
-brain env
-```
-
-## Quick Start
-
-```bash
-# Start an agent through the brain shim
-brain codex
-brain opencode
-
-# If shell integration is enabled, these pass through the brain automatically
-codex
-opencode
-```
-
-The installer creates:
-
-- `~/.local/bin/brain` — wrapper for agentic CLIs.
-- `~/AGENTS.md` — global bootstrap for agents that read AGENTS.md.
-- `~/CLAUDE.md` and `~/GEMINI.md` — global bridges for those tools.
-- `~/AI-Brain/vault` — default Obsidian-compatible vault.
-- optional shell aliases/wrappers for known agent CLIs.
-
-To install real command wrappers for GUI/PATH coverage:
-
-```bash
-INSTALL_AGENT_WRAPPERS=1 ./install.sh
-```
-
-Or wrap one command manually:
-
-```bash
-scripts/install-agent-wrapper.sh codex /path/to/real/codex
-scripts/install-agent-wrapper.sh opencode /opt/homebrew/bin/opencode
-```
-
-## How It Works
+Default paths:
 
 ```text
-Without Agent Brain Runtime:
-
-  Agent -> project files -> answer
-
-With Agent Brain Runtime:
-
-  Agent -> AGENTS.md -> vault/index.md + relevant notes -> project files -> answer
-                                                        |
-                                                        v
-                                           distilled notes after work
+~/Synapse/vault          # Obsidian-compatible knowledge base
+~/.local/bin/synapse     # CLI (brain -> synapse symlink)
 ```
 
-The wrapper exports:
-
-- `BRAIN_ROOT`
-- `BRAIN_VAULT`
-- `BRAIN_BOOT`
-- `BRAIN_WORKFLOW`
-- `BRAIN_SKILLS_DIR` — where executable skill catalogs live
-- `BRAIN_SESSION_ID` — id for this launch (provenance/audit)
-- `BRAIN_VAULT_HASH` — load-time vault fingerprint (staleness detection)
-- `BRAIN_LOADED=1` — set inside a brain-loaded session, so agents and `brain status` can detect it
-- `OBSIDIAN_VAULT_PATH`
-- `OBSIDIAN_WIKI_REPO`
-- `OBSIDIAN_LINK_FORMAT`
-
-It does not intercept normal developer commands like `git`, `npm`, or `python`.
-Only agentic CLIs should run through the brain.
-
-## Skills Library (rated)
-
-This is what sets Agent Brain Runtime apart from opaque memory stores: skills are
-**Markdown procedures with a scorecard**, so the vault is a *library of proven abilities*,
-not just a pile of notes. Each skill carries four fields in its frontmatter:
-
-```yaml
-uses: 12          # times the skill was applied
-score: 4.6        # running average quality vote (1–5)
-votes: 5          # number of quality votes
-last_used: 2026-06-16
-```
-
-Both the agent and you keep it honest:
+Verify:
 
 ```bash
-brain skill list                      # the library, ranked by score then uses
-brain skill use   distill-after-work  # agent records a use (+1, sets last_used)
-brain skill rate  distill-after-work 5 "saved a full re-derive"   # quality vote (1–5)
-brain skill show  distill-after-work  # scorecard + recent rating history
+synapse doctor
+synapse env
 ```
 
-Every change is also appended to `skills/_ratings.log` for provenance. The result is a
-self-improving library: skills that repeatedly work rise to the top, weak ones become
-visible, and the whole thing stays human-readable and editable in Obsidian.
+Point at an existing vault:
 
-## Token Cost
+```bash
+SYNAPSE_HOME="$HOME/My-Brain" BRAIN_VAULT="$HOME/My-Brain/vault" ./install.sh
+```
 
-How much context does loading the brain actually consume? Below is a real measurement
-on a **56-page vault** (~4 chars/token estimate). Your numbers scale with vault size.
+## Quick start
 
-| What | Tokens | When |
-|------|-------:|------|
-| Enforcement injection (session header) | ~150–250 | once per session (+ per subagent) |
-| Boot chain — global + vault `AGENTS.md` + `index.md` | ~3,200 | once per session |
-| Selective reads — 1–3 relevant pages | ~1,200–3,500 | per task |
-| **Typical brain-aware session** | **~5,000–7,000** | **~3–4% of a 200k window** |
-| Reading the *entire* vault (anti-pattern) | ~39,000 | avoid — this is what the protocol prevents |
+```bash
+synapse codex
+synapse claude
+synapse opencode
+```
 
-Takeaways:
+With shell integration (`synapse reinit`), aliases like `codex` route through Synapse.
 
-- **The enforcement is the cheapest part** (~200 tokens). The cost is dominated by the
-  `AGENTS.md` manual plus `index.md`.
-- **The `index → summaries → selective bodies` recipe is the cost control.** Reading
-  only what's relevant keeps a session at ~5–7k instead of ~39k.
-- **`index.md` grows linearly** with the vault. When it gets large, split knowledge into
-  per-domain maps (the `synthesis/` MOCs) so agents load only the relevant hub.
-- With prompt caching, a stable boot chain re-read within the cache window is nearly free.
-
-## Recommended With RTK
-
-Use RTK for compact shell output:
-
-Follow the install instructions at the [RTK repository](https://github.com/rtk-ai/rtk).
-
-Recommended agent instruction:
+## How it works
 
 ```text
-Use rtk before shell commands when possible.
-Use the brain before planning, editing, or creating project output.
+read vault (Phase 0) -> work with context -> distill if meaningful -> synapse check
 ```
 
-RTK saves tokens in the short-term context. Agent Brain Runtime preserves knowledge
-across sessions.
+Exports include `SYNAPSE_HOME`, `BRAIN_VAULT`, `BRAIN_LOADED`, `BRAIN_SESSION_ID`,
+`BRAIN_VAULT_HASH`, and Obsidian-compatible paths. Normal dev commands (`git`, `npm`) are
+**not** intercepted — only agentic CLIs.
+
+Workflow details: `vault/_meta/workflow.md` (Phase 0, Phase 0-short, meaningful work,
+staleness, subagents).
 
 ## Commands
 
 ```bash
-brain status       # is the brain active here? vault, session id, staleness
-brain check        # read-only quality gate: validate + dedup (no writes)
-brain doctor       # verify boot files exist
-brain which codex  # show what a command resolves to (and if brain wraps it)
-brain reinit       # idempotently rewrite the shell-rc block with current paths
-brain env          # print brain environment
-brain codex        # run Codex with brain env
-brain opencode     # run OpenCode with brain env
+synapse status       # active? vault, session, staleness
+synapse check        # validate + dedup (read-only)
+synapse doctor       # boot files exist?
+synapse skill list   # ranked skills library
+synapse reinit       # rewrite shell-rc Synapse block
+synapse env
+synapse <cli>        # run agent with vault env
 ```
 
-`brain status` is meant to be run **from inside an agent session** to confirm the brain
-is actually loaded (`BRAIN_LOADED=1`) and that the vault has not changed since load. If an
-agent was started outside the brain, `brain status` reports `NOT active`.
+`brain` remains a symlink to `synapse` for backward compatibility.
 
-## Vault Structure
+## Skills library (rated)
 
-```text
-vault/
-  AGENTS.md
-  index.md
-  hot.md
-  log.md
-  _meta/
-    workflow.md
-    taxonomy.md
-    validate.py
-    dedup.py
-  concepts/
-  references/
-  synthesis/
-  skills/
-  projects/
-  entities/
-  journal/
+Starter vault includes one example skill (`distill-after-work`). Add your own under
+`vault/skills/` or use a [custom layout](docs/CUSTOM-LAYOUT.md) for monorepo skill dirs.
+
+```bash
+synapse skill use   distill-after-work
+synapse skill rate  distill-after-work 5 "saved a re-derive"
 ```
 
-## Daily Workflow
+## Token cost
 
-1. Start your agent from a project folder.
-2. The agent reads global/project `AGENTS.md`.
-3. It checks `vault/index.md`, then opens the relevant notes.
-4. It works normally.
-5. At the end, it distills reusable knowledge into atomic notes.
-6. It runs `python3 "$BRAIN_VAULT/_meta/validate.py"`.
-7. Periodically, it runs `python3 "$BRAIN_VAULT/_meta/dedup.py"` to surface
-   near-duplicate notes, then merges or cross-links the flagged pairs.
+On a ~56-page vault, a typical Synapse-aware session is **~5k–7k tokens** (boot +
+1–3 selective reads). Use `index → summary → body` and `synthesis/` hubs when the index
+grows past ~80 entries.
 
-## GUI Coverage
+## Claude Code hooks
 
-Terminal aliases cover interactive shells. Wrapper binaries in `~/.local/bin` can
-also cover GUIs that resolve commands from `PATH`.
+Templates in `templates/vault/_meta/hooks/`:
 
-GUIs that launch absolute embedded binary paths may bypass the shim. In that case,
-configure the GUI command path to point to `~/.local/bin/<tool>` or use `brain <tool>`.
+- `session-enforce.sh` — inject bootstrap on SessionStart / SubagentStart
+- `stop-check.sh` — `synapse check` only when `vault/` has git changes
 
 ## Uninstall
 
 ```bash
-./uninstall.sh
+./uninstall.sh              # keeps ~/Synapse
+./uninstall.sh --delete-vault # removes vault too
 ```
-
-The uninstaller removes the shim and global boot files. It does not delete your vault
-unless you pass `--delete-vault`.
 
 ## FAQ
 
-### What is Agent Brain Runtime?
+### What is Synapse?
 
-Agent Brain Runtime is an open-source persistent-memory layer for AI coding agents. It
-gives CLIs like Claude Code, Codex, Gemini, and OpenCode a shared, Obsidian-compatible
-Markdown knowledge base (a "vault") that they read before working and write to afterward,
-so context and lessons survive across sessions.
+Open-source persistent memory for AI coding agents: a portable vault + `synapse` shell shim.
 
-### How do I give an AI coding agent long-term memory?
+### Former name?
 
-Point the agent at a persistent knowledge base it reads before acting and updates after.
-Agent Brain Runtime does this with a portable shell shim (`brain`) plus an Obsidian vault:
-run `./install.sh`, then launch your agent through the brain (`brain codex`, `brain claude`).
+This project was **Agent Brain Runtime** (`agent-brain-runtime`). Repo and product are now **Synapse**.
 
-### Does it work with Claude Code, Codex, Gemini, and OpenCode?
+### Do I need Obsidian?
 
-Yes. It is agent-agnostic and works with any agentic CLI that can read instructions or
-inherit environment variables. See [Supported agents](#supported-agents).
+No. Markdown files only; Obsidian is optional for graph browsing.
 
-### Do I need Obsidian or a database?
+## License
 
-No database and no cloud service are required. The vault is just Markdown files; Obsidian
-is optional and only used to browse the knowledge graph visually.
-
-### Is it free and open source?
-
-Yes — MIT licensed. See the [LICENSE](LICENSE).
-
-### How is this different from RAG or a vector database?
-
-Agent Brain Runtime is intentionally simple: human-readable Markdown notes linked with
-`[[wikilinks]]`, validated by a quality gate, with no embeddings or external services.
-It complements heavier retrieval setups rather than replacing them.
-
-## Status
-
-This is a lightweight, shell-native starter kit for **AI agent memory**. It is
-intentionally simple: Markdown, Obsidian links, portable shell scripts, and clear agent
-instructions — easy to read, audit, and extend.
-
-## Keywords
-
-Persistent memory for AI coding agents · AI agent long-term memory · Claude Code memory ·
-Codex / Gemini / OpenCode knowledge base · Obsidian vault for AI agents · agentic CLI
-context · shared knowledge base for LLM agents.
+MIT — see [LICENSE](LICENSE).

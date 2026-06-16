@@ -2,7 +2,7 @@
 title: Workflow
 category: concepts
 tags: [knowledge, workflow, memory]
-sources: [agent-brain-runtime]
+sources: [synapse]
 summary: The default agent loop: read the vault before work, then distill reusable knowledge after work.
 created: 2026-01-01T00:00:00Z
 updated: 2026-01-01T00:00:00Z

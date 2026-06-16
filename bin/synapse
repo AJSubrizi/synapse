@@ -2,15 +2,15 @@
 set -u
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CMD_NAME="$(basename "$0")"
 
-BRAIN_ROOT="${BRAIN_ROOT:-$HOME/AI-Brain}"
+BRAIN_ROOT="${BRAIN_ROOT:-${SYNAPSE_HOME:-$HOME/Synapse}}"
 BRAIN_VAULT="${BRAIN_VAULT:-$BRAIN_ROOT/vault}"
 BRAIN_BOOT="${BRAIN_BOOT:-$BRAIN_VAULT/AGENTS.md}"
 BRAIN_WORKFLOW="${BRAIN_WORKFLOW:-$BRAIN_VAULT/_meta/workflow.md}"
 BRAIN_GLOBAL_AGENTS="${BRAIN_GLOBAL_AGENTS:-$HOME/AGENTS.md}"
 BRAIN_SKILLS_DIR="${BRAIN_SKILLS_DIR:-$BRAIN_VAULT/skills}"
 
-# Cheap staleness proxy: the catalog (index.md) changes on every write per the protocol.
 vault_hash() {
   if [[ -f "$BRAIN_VAULT/index.md" ]]; then
     cksum "$BRAIN_VAULT/index.md" 2>/dev/null | awk '{print $1}'
@@ -19,34 +19,36 @@ vault_hash() {
   fi
 }
 
-# Generated once per launch; inherited by re-entrant calls (e.g. the agent wrapper).
 BRAIN_SESSION_ID="${BRAIN_SESSION_ID:-$(date +%Y%m%d-%H%M%S)-$$}"
 BRAIN_VAULT_HASH="${BRAIN_VAULT_HASH:-$(vault_hash)}"
 
 export BRAIN_ROOT BRAIN_VAULT BRAIN_BOOT BRAIN_WORKFLOW BRAIN_GLOBAL_AGENTS
 export BRAIN_SKILLS_DIR BRAIN_SESSION_ID BRAIN_VAULT_HASH
+export SYNAPSE_HOME="${SYNAPSE_HOME:-$BRAIN_ROOT}"
 export OBSIDIAN_VAULT_PATH="${OBSIDIAN_VAULT_PATH:-$BRAIN_VAULT}"
 export OBSIDIAN_WIKI_REPO="${OBSIDIAN_WIKI_REPO:-$BRAIN_ROOT}"
 export OBSIDIAN_LINK_FORMAT="${OBSIDIAN_LINK_FORMAT:-wikilink}"
 
 usage() {
-  cat <<'EOF'
-brain — persistent memory bootstrap for agentic CLIs
+  cat <<EOF
+$CMD_NAME — Synapse: persistent memory bootstrap for agentic CLIs
 
 Usage:
-  brain <cli> [args...]   run an agent CLI with the brain environment loaded
-  brain status            is the brain active here? vault, session, staleness
-  brain check             read-only quality gate: validate + dedup (no writes)
-  brain skill <cmd>       skills library scorecards: list | use | rate | show
-  brain doctor            verify boot files exist
-  brain which <cmd>       show what <cmd> resolves to (and if brain wraps it)
-  brain reinit            idempotently (re)write the shell-rc block with current paths
-  brain env               print the brain environment
+  $CMD_NAME <cli> [args...]   run an agent CLI with the vault environment loaded
+  $CMD_NAME status           vault active? session id, staleness
+  $CMD_NAME check            read-only quality gate: validate + dedup
+  $CMD_NAME skill <cmd>      skill scorecards: list | use | rate | show
+  $CMD_NAME doctor           verify boot files exist
+  $CMD_NAME which <cmd>      resolve command (and if Synapse wraps it)
+  $CMD_NAME reinit           idempotently (re)write the shell-rc block
+  $CMD_NAME env              print environment
 
 Examples:
-  brain codex
-  brain claude
-  brain opencode
+  $CMD_NAME codex
+  $CMD_NAME claude
+  $CMD_NAME opencode
+
+Legacy: \`brain\` is a symlink to \`synapse\` when installed via install.sh.
 EOF
 }
 
@@ -65,9 +67,9 @@ doctor() {
 
 status() {
   if [[ "${BRAIN_LOADED:-0}" == "1" ]]; then
-    printf 'brain: ACTIVE in this environment\n'
+    printf 'synapse: ACTIVE in this environment\n'
   else
-    printf 'brain: NOT active here — start your agent via "brain <cli>" or the shell alias\n'
+    printf 'synapse: NOT active — start via "%s <cli>" or a shell alias\n' "$CMD_NAME"
   fi
   printf 'vault:    %s\n' "$BRAIN_VAULT"
   printf 'skills:   %s\n' "$BRAIN_SKILLS_DIR"
@@ -81,10 +83,19 @@ status() {
   doctor
 }
 
+strip_rc_block() {
+  local rc="$1" tmp
+  tmp="$(mktemp)"
+  awk '
+    /# >>> Synapse >>>/ { skip=1 }
+    skip && /# <<< Synapse <<</ { skip=0; next }
+    /# >>> Agent Brain Runtime >>>/ { skip=1 }
+    skip && /# <<< Agent Brain Runtime <<</ { skip=0; next }
+    !skip { print }
+  ' "$rc" > "$tmp" && mv "$tmp" "$rc"
+}
+
 reinit() {
-  # Idempotently rewrite the marked shell-rc block: strip any old one, then append a
-  # fresh block with the current paths. Re-running after changing BRAIN_VAULT no longer
-  # leaves stale exports behind. Used by install.sh and runnable on its own.
   local prefix="$SELF_DIR" rc default_rc
   case "${SHELL:-}" in
     *bash) default_rc="$HOME/.bashrc" ;;
@@ -92,18 +103,14 @@ reinit() {
   esac
   rc="${SHELL_RC:-$default_rc}"
 
-  if [[ -f "$rc" ]] && grep -q "Agent Brain Runtime" "$rc"; then
-    local tmp; tmp="$(mktemp)"
-    awk '
-      /# >>> Agent Brain Runtime >>>/ { skip=1 }
-      skip && /# <<< Agent Brain Runtime <<</ { skip=0; next }
-      !skip { print }
-    ' "$rc" > "$tmp" && mv "$tmp" "$rc"
+  if [[ -f "$rc" ]]; then
+    strip_rc_block "$rc"
   fi
 
   cat >> "$rc" <<EOF
 
-# >>> Agent Brain Runtime >>>
+# >>> Synapse >>>
+export SYNAPSE_HOME="$BRAIN_ROOT"
 export BRAIN_ROOT="$BRAIN_ROOT"
 export BRAIN_VAULT="$BRAIN_VAULT"
 export BRAIN_BOOT="\$BRAIN_VAULT/AGENTS.md"
@@ -116,29 +123,27 @@ case ":\$PATH:" in
   *":$prefix:"*) ;;
   *) export PATH="$prefix:\$PATH" ;;
 esac
-alias codex='brain codex'
-alias opencode='brain opencode'
-alias claude='brain claude'
-alias gemini='brain gemini'
-# <<< Agent Brain Runtime <<<
+alias codex='synapse codex'
+alias opencode='synapse opencode'
+alias claude='synapse claude'
+alias gemini='synapse gemini'
+# <<< Synapse <<<
 EOF
-  printf 'brain: rewrote Agent Brain Runtime block in %s\n' "$rc"
-  printf 'brain: open a new terminal (or source it) to apply.\n'
+  printf 'synapse: rewrote Synapse block in %s\n' "$rc"
+  printf 'synapse: open a new terminal (or source it) to apply.\n'
 }
 
 check() {
-  # Read-only distillation gate. validate.py errors gate the exit code; dedup
-  # candidates are informational. Neither writes to the vault.
   local v="$BRAIN_VAULT/_meta/validate.py" d="$BRAIN_VAULT/_meta/dedup.py" rc=0
   if ! command -v python3 >/dev/null 2>&1; then
-    printf 'brain: python3 not found; cannot run check\n' >&2
+    printf 'synapse: python3 not found; cannot run check\n' >&2
     return 2
   fi
   if [[ -f "$v" ]]; then
     printf '== validate ==\n'
     python3 "$v" || rc=$?
   else
-    printf 'brain: no validate.py at %s\n' "$v" >&2
+    printf 'synapse: no validate.py at %s\n' "$v" >&2
     rc=1
   fi
   if [[ -f "$d" ]]; then
@@ -151,19 +156,19 @@ check() {
 which_cmd() {
   local c="${1:-}" p
   if [[ -z "$c" ]]; then
-    printf 'usage: brain which <cmd>\n' >&2
+    printf 'usage: %s which <cmd>\n' "$CMD_NAME" >&2
     return 2
   fi
-  p="$(command -v -- "$c" 2>/dev/null)" || { printf 'brain: command not found: %s\n' "$c" >&2; return 127; }
+  p="$(command -v -- "$c" 2>/dev/null)" || { printf 'synapse: command not found: %s\n' "$c" >&2; return 127; }
   printf 'command:  %s\n' "$c"
   printf 'resolves: %s\n' "$p"
-  if grep -qs "$SELF_DIR/brain" "$p" 2>/dev/null; then
-    printf 'type:     brain wrapper -> %s/brain\n' "$SELF_DIR"
+  if grep -qsE "$SELF_DIR/(synapse|brain)" "$p" 2>/dev/null; then
+    printf 'type:     synapse wrapper -> %s\n' "$SELF_DIR"
   else
-    printf 'type:     direct binary (not wrapped by brain)\n'
+    printf 'type:     direct binary (not wrapped by synapse)\n'
   fi
-  if [[ -e "$SELF_DIR/.brain-real/$c" ]]; then
-    printf 'real:     %s\n' "$(readlink "$SELF_DIR/.brain-real/$c" 2>/dev/null || echo "$SELF_DIR/.brain-real/$c")"
+  if [[ -e "$SELF_DIR/.synapse-real/$c" ]]; then
+    printf 'real:     %s\n' "$(readlink "$SELF_DIR/.synapse-real/$c" 2>/dev/null || echo "$SELF_DIR/.synapse-real/$c")"
   fi
 }
 
@@ -184,11 +189,11 @@ case "${1:-}" in
     shift
     s="$BRAIN_VAULT/_meta/skill.py"
     if [[ ! -f "$s" ]]; then
-      printf 'brain: skill engine not found at %s\n' "$s" >&2
+      printf 'synapse: skill engine not found at %s\n' "$s" >&2
       exit 2
     fi
     if ! command -v python3 >/dev/null 2>&1; then
-      printf 'brain: python3 not found; cannot run skill\n' >&2
+      printf 'synapse: python3 not found; cannot run skill\n' >&2
       exit 2
     fi
     BRAIN_SKILLS_DIR="$BRAIN_SKILLS_DIR" exec python3 "$s" "$@"
@@ -206,6 +211,7 @@ case "${1:-}" in
     exit $?
     ;;
   env)
+    printf 'SYNAPSE_HOME=%s\n' "$SYNAPSE_HOME"
     printf 'BRAIN_ROOT=%s\n' "$BRAIN_ROOT"
     printf 'BRAIN_VAULT=%s\n' "$BRAIN_VAULT"
     printf 'BRAIN_BOOT=%s\n' "$BRAIN_BOOT"
@@ -225,12 +231,12 @@ cmd="$1"
 shift
 
 if ! command -v -- "$cmd" >/dev/null 2>&1; then
-  printf 'brain: command not found: %s\n' "$cmd" >&2
+  printf 'synapse: command not found: %s\n' "$cmd" >&2
   exit 127
 fi
 
 if [[ "${BRAIN_ACTIVE:-0}" != "1" && "${BRAIN_QUIET:-0}" != "1" ]]; then
-  printf 'brain[vault]: %s (session: %s)\n' "$BRAIN_VAULT" "$BRAIN_SESSION_ID" >&2
+  printf 'synapse[vault]: %s (session: %s)\n' "$BRAIN_VAULT" "$BRAIN_SESSION_ID" >&2
 fi
 
 export BRAIN_ACTIVE=1
