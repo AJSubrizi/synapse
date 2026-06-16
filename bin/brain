@@ -1,17 +1,30 @@
 #!/usr/bin/env bash
 set -u
 
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 BRAIN_ROOT="${BRAIN_ROOT:-$HOME/AI-Brain}"
 BRAIN_VAULT="${BRAIN_VAULT:-$BRAIN_ROOT/vault}"
 BRAIN_BOOT="${BRAIN_BOOT:-$BRAIN_VAULT/AGENTS.md}"
 BRAIN_WORKFLOW="${BRAIN_WORKFLOW:-$BRAIN_VAULT/_meta/workflow.md}"
 BRAIN_GLOBAL_AGENTS="${BRAIN_GLOBAL_AGENTS:-$HOME/AGENTS.md}"
+BRAIN_SKILLS_DIR="${BRAIN_SKILLS_DIR:-$BRAIN_VAULT/skills}"
 
-export BRAIN_ROOT
-export BRAIN_VAULT
-export BRAIN_BOOT
-export BRAIN_WORKFLOW
-export BRAIN_GLOBAL_AGENTS
+# Cheap staleness proxy: the catalog (index.md) changes on every write per the protocol.
+vault_hash() {
+  if [[ -f "$BRAIN_VAULT/index.md" ]]; then
+    cksum "$BRAIN_VAULT/index.md" 2>/dev/null | awk '{print $1}'
+  else
+    printf 'none'
+  fi
+}
+
+# Generated once per launch; inherited by re-entrant calls (e.g. the agent wrapper).
+BRAIN_SESSION_ID="${BRAIN_SESSION_ID:-$(date +%Y%m%d-%H%M%S)-$$}"
+BRAIN_VAULT_HASH="${BRAIN_VAULT_HASH:-$(vault_hash)}"
+
+export BRAIN_ROOT BRAIN_VAULT BRAIN_BOOT BRAIN_WORKFLOW BRAIN_GLOBAL_AGENTS
+export BRAIN_SKILLS_DIR BRAIN_SESSION_ID BRAIN_VAULT_HASH
 export OBSIDIAN_VAULT_PATH="${OBSIDIAN_VAULT_PATH:-$BRAIN_VAULT}"
 export OBSIDIAN_WIKI_REPO="${OBSIDIAN_WIKI_REPO:-$BRAIN_ROOT}"
 export OBSIDIAN_LINK_FORMAT="${OBSIDIAN_LINK_FORMAT:-wikilink}"
@@ -21,9 +34,11 @@ usage() {
 brain — persistent memory bootstrap for agentic CLIs
 
 Usage:
-  brain <cli> [args...]
-  brain doctor
-  brain env
+  brain <cli> [args...]   run an agent CLI with the brain environment loaded
+  brain status            is the brain active here? vault, session, staleness
+  brain doctor            verify boot files exist
+  brain which <cmd>       show what <cmd> resolves to (and if brain wraps it)
+  brain env               print the brain environment
 
 Examples:
   brain codex
@@ -33,7 +48,7 @@ EOF
 }
 
 doctor() {
-  local rc=0
+  local rc=0 path
   for path in "$BRAIN_BOOT" "$BRAIN_VAULT/index.md" "$BRAIN_VAULT/_meta/workflow.md" "$BRAIN_GLOBAL_AGENTS"; do
     if [[ -f "$path" ]]; then
       printf 'ok   %s\n' "$path"
@@ -45,13 +60,58 @@ doctor() {
   return "$rc"
 }
 
+status() {
+  if [[ "${BRAIN_LOADED:-0}" == "1" ]]; then
+    printf 'brain: ACTIVE in this environment\n'
+  else
+    printf 'brain: NOT active here — start your agent via "brain <cli>" or the shell alias\n'
+  fi
+  printf 'vault:    %s\n' "$BRAIN_VAULT"
+  printf 'skills:   %s\n' "$BRAIN_SKILLS_DIR"
+  printf 'session:  %s\n' "$BRAIN_SESSION_ID"
+  local now; now="$(vault_hash)"
+  if [[ "${BRAIN_LOADED:-0}" == "1" && "$now" != "$BRAIN_VAULT_HASH" ]]; then
+    printf 'hash:     %s  (STALE — vault changed since load; now %s)\n' "$BRAIN_VAULT_HASH" "$now"
+  else
+    printf 'hash:     %s\n' "$now"
+  fi
+  doctor
+}
+
+which_cmd() {
+  local c="${1:-}" p
+  if [[ -z "$c" ]]; then
+    printf 'usage: brain which <cmd>\n' >&2
+    return 2
+  fi
+  p="$(command -v -- "$c" 2>/dev/null)" || { printf 'brain: command not found: %s\n' "$c" >&2; return 127; }
+  printf 'command:  %s\n' "$c"
+  printf 'resolves: %s\n' "$p"
+  if grep -qs "$SELF_DIR/brain" "$p" 2>/dev/null; then
+    printf 'type:     brain wrapper -> %s/brain\n' "$SELF_DIR"
+  else
+    printf 'type:     direct binary (not wrapped by brain)\n'
+  fi
+  if [[ -e "$SELF_DIR/.brain-real/$c" ]]; then
+    printf 'real:     %s\n' "$(readlink "$SELF_DIR/.brain-real/$c" 2>/dev/null || echo "$SELF_DIR/.brain-real/$c")"
+  fi
+}
+
 case "${1:-}" in
   ""|-h|--help)
     usage
     exit 0
     ;;
+  status)
+    status
+    exit 0
+    ;;
   doctor)
     doctor
+    exit $?
+    ;;
+  which)
+    which_cmd "${2:-}"
     exit $?
     ;;
   env)
@@ -60,6 +120,9 @@ case "${1:-}" in
     printf 'BRAIN_BOOT=%s\n' "$BRAIN_BOOT"
     printf 'BRAIN_WORKFLOW=%s\n' "$BRAIN_WORKFLOW"
     printf 'BRAIN_GLOBAL_AGENTS=%s\n' "$BRAIN_GLOBAL_AGENTS"
+    printf 'BRAIN_SKILLS_DIR=%s\n' "$BRAIN_SKILLS_DIR"
+    printf 'BRAIN_SESSION_ID=%s\n' "$BRAIN_SESSION_ID"
+    printf 'BRAIN_VAULT_HASH=%s\n' "$BRAIN_VAULT_HASH"
     printf 'OBSIDIAN_VAULT_PATH=%s\n' "$OBSIDIAN_VAULT_PATH"
     printf 'OBSIDIAN_WIKI_REPO=%s\n' "$OBSIDIAN_WIKI_REPO"
     printf 'OBSIDIAN_LINK_FORMAT=%s\n' "$OBSIDIAN_LINK_FORMAT"
@@ -76,9 +139,10 @@ if ! command -v -- "$cmd" >/dev/null 2>&1; then
 fi
 
 if [[ "${BRAIN_ACTIVE:-0}" != "1" && "${BRAIN_QUIET:-0}" != "1" ]]; then
-  printf 'brain: loaded vault %s\n' "$BRAIN_VAULT" >&2
+  printf 'brain[vault]: %s (session: %s)\n' "$BRAIN_VAULT" "$BRAIN_SESSION_ID" >&2
 fi
 
 export BRAIN_ACTIVE=1
+export BRAIN_LOADED=1
 
 exec "$cmd" "$@"

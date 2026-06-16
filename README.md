@@ -182,6 +182,10 @@ The wrapper exports:
 - `BRAIN_VAULT`
 - `BRAIN_BOOT`
 - `BRAIN_WORKFLOW`
+- `BRAIN_SKILLS_DIR` — where executable skill catalogs live
+- `BRAIN_SESSION_ID` — id for this launch (provenance/audit)
+- `BRAIN_VAULT_HASH` — load-time vault fingerprint (staleness detection)
+- `BRAIN_LOADED=1` — set inside a brain-loaded session, so agents and `brain status` can detect it
 - `OBSIDIAN_VAULT_PATH`
 - `OBSIDIAN_WIKI_REPO`
 - `OBSIDIAN_LINK_FORMAT`
@@ -208,11 +212,17 @@ across sessions.
 ## Commands
 
 ```bash
-brain doctor       # verify files and vault
+brain status       # is the brain active here? vault, session id, staleness
+brain doctor       # verify boot files exist
+brain which codex  # show what a command resolves to (and if brain wraps it)
 brain env          # print brain environment
 brain codex        # run Codex with brain env
 brain opencode     # run OpenCode with brain env
 ```
+
+`brain status` is meant to be run **from inside an agent session** to confirm the brain
+is actually loaded (`BRAIN_LOADED=1`) and that the vault has not changed since load. If an
+agent was started outside the brain, `brain status` reports `NOT active`.
 
 ## Vault Structure
 

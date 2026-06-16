@@ -2,6 +2,14 @@
 
 This vault is the long-term memory for AI agents.
 
+## Runtime vs. skills
+
+This vault is the **runtime memory** (what you know). **Executable procedures live in
+skills**, catalogued under `$BRAIN_SKILLS_DIR` (see `skills/skills-library.md` if present).
+"Load the brain" means read this vault for context; "use a skill" means run a specific
+procedure from the skills directory. Don't hardcode skill paths — resolve them from
+`$BRAIN_SKILLS_DIR`.
+
 ## Read Recipe
 
 1. Read `index.md`.

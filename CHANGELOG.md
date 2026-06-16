@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Observability: `brain` now always exports `BRAIN_LOADED=1` inside a loaded session,
+  plus `BRAIN_SESSION_ID` (provenance), `BRAIN_VAULT_HASH` (staleness), and
+  `BRAIN_SKILLS_DIR`. New `brain status` (active? vault, session, staleness) and
+  `brain which <cmd>` (what a command resolves to, and whether brain wraps it). The
+  run banner now shows the vault and session id.
+- Vault manual documents the runtime-vs-skills boundary and `$BRAIN_SKILLS_DIR`.
+
 ## 0.1.1
 
 - `validate.py` now warns on knowledge rot in addition to integrity errors:
