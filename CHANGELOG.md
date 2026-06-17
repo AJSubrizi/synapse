@@ -3,7 +3,8 @@
 ## Unreleased
 
 - README: "Adding content" guide — manual drop into the right folder, then let the agent
-  normalize frontmatter/tags/links/index and run `synapse check`.
+  normalize frontmatter/tags/links/index and run `synapse check`; plus agent-driven ingestion
+  of an external source (URL, Git repo, document) with provenance in `sources`.
 
 ## 0.3.0
 
