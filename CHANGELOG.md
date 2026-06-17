@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.3.0
+
+- **Multiple vaults**: `synapse vault <name>` switches to (or scaffolds) a named vault under
+  `~/Synapse/vaults/<name>`; `synapse vault` lists them; `synapse vault default` returns to the
+  default vault. Active vault tracked in `~/Synapse/.active-vault` and resolved dynamically.
+- New vaults inherit the engine + workflow from the current vault with an empty knowledge surface.
+- `reinit` no longer pins `BRAIN_VAULT` in the shell-rc block, so vault switches apply to the next
+  `synapse <cli>` launch without reloading the shell. (Run `synapse reinit` once after upgrading.)
+- README: vault visualization screenshot and a "what to put in a vault" guide (skills, security
+  rules, legacy-codebase rules).
+
 ## 0.2.0 — Synapse
 
 - **Rename** project and GitHub repo to **Synapse** (formerly Agent Brain Runtime).

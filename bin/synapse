@@ -4,8 +4,23 @@ set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CMD_NAME="$(basename "$0")"
 
+# Capture an explicit BRAIN_VAULT override (pins the vault, bypasses the switcher).
+ENV_BRAIN_VAULT="${BRAIN_VAULT:-}"
 BRAIN_ROOT="${BRAIN_ROOT:-${SYNAPSE_HOME:-$HOME/Synapse}}"
-BRAIN_VAULT="${BRAIN_VAULT:-$BRAIN_ROOT/vault}"
+VAULTS_DIR="$BRAIN_ROOT/vaults"
+ACTIVE_VAULT_FILE="$BRAIN_ROOT/.active-vault"
+
+# Resolve the active vault: explicit env override > named active vault > default.
+resolve_vault() {
+  if [[ -n "$ENV_BRAIN_VAULT" ]]; then printf '%s' "$ENV_BRAIN_VAULT"; return; fi
+  if [[ -f "$ACTIVE_VAULT_FILE" ]]; then
+    local n; n="$(tr -d '[:space:]' < "$ACTIVE_VAULT_FILE" 2>/dev/null)"
+    if [[ -n "$n" && -d "$VAULTS_DIR/$n" ]]; then printf '%s' "$VAULTS_DIR/$n"; return; fi
+  fi
+  printf '%s' "$BRAIN_ROOT/vault"
+}
+
+BRAIN_VAULT="$(resolve_vault)"
 BRAIN_BOOT="${BRAIN_BOOT:-$BRAIN_VAULT/AGENTS.md}"
 BRAIN_WORKFLOW="${BRAIN_WORKFLOW:-$BRAIN_VAULT/_meta/workflow.md}"
 BRAIN_GLOBAL_AGENTS="${BRAIN_GLOBAL_AGENTS:-$HOME/AGENTS.md}"
@@ -35,6 +50,7 @@ $CMD_NAME — Synapse: persistent memory bootstrap for agentic CLIs
 
 Usage:
   $CMD_NAME <cli> [args...]   run an agent CLI with the vault environment loaded
+  $CMD_NAME vault [name]     list vaults, or switch to / create vault <name>
   $CMD_NAME status           vault active? session id, staleness
   $CMD_NAME check            read-only quality gate: validate + dedup
   $CMD_NAME skill <cmd>      skill scorecards: list | use | rate | show
@@ -112,11 +128,8 @@ reinit() {
 # >>> Synapse >>>
 export SYNAPSE_HOME="$BRAIN_ROOT"
 export BRAIN_ROOT="$BRAIN_ROOT"
-export BRAIN_VAULT="$BRAIN_VAULT"
-export BRAIN_BOOT="\$BRAIN_VAULT/AGENTS.md"
-export BRAIN_WORKFLOW="\$BRAIN_VAULT/_meta/workflow.md"
-export BRAIN_SKILLS_DIR="\$BRAIN_VAULT/skills"
-export OBSIDIAN_VAULT_PATH="\${OBSIDIAN_VAULT_PATH:-\$BRAIN_VAULT}"
+# Vault is resolved dynamically by synapse so "synapse vault <name>" applies
+# immediately. Export BRAIN_VAULT yourself only to pin a specific vault.
 export OBSIDIAN_WIKI_REPO="\${OBSIDIAN_WIKI_REPO:-\$BRAIN_ROOT}"
 export OBSIDIAN_LINK_FORMAT="\${OBSIDIAN_LINK_FORMAT:-wikilink}"
 case ":\$PATH:" in
@@ -172,10 +185,91 @@ which_cmd() {
   fi
 }
 
+# Seed a new named vault: inherit the engine + workflow from an existing vault,
+# but start with an empty knowledge surface.
+scaffold_vault() {
+  local target="$1" seed=""
+  if [[ -d "$BRAIN_VAULT/_meta" ]]; then seed="$BRAIN_VAULT"
+  elif [[ -d "$BRAIN_ROOT/vault/_meta" ]]; then seed="$BRAIN_ROOT/vault"; fi
+
+  mkdir -p \
+    "$target/_meta/hooks" "$target/concepts" "$target/references" \
+    "$target/synthesis" "$target/skills" "$target/projects" \
+    "$target/entities" "$target/journal"
+
+  if [[ -n "$seed" ]]; then
+    cp -R "$seed/_meta/." "$target/_meta/" 2>/dev/null || true
+    [[ -f "$seed/AGENTS.md" ]] && cp "$seed/AGENTS.md" "$target/AGENTS.md"
+  fi
+  [[ -f "$target/index.md" ]]  || printf '# Index\n\n_Empty vault. Add notes under concepts/, references/, skills/, projects/._\n' > "$target/index.md"
+  [[ -f "$target/hot.md" ]]    || printf '# Hot\n\n_Most-used notes surface here._\n' > "$target/hot.md"
+  [[ -f "$target/log.md" ]]    || printf '# Log\n' > "$target/log.md"
+  # shellcheck disable=SC2016  # backticks are literal Markdown, not a command substitution
+  [[ -f "$target/AGENTS.md" ]] || printf '# Vault operations\n\nSee `_meta/workflow.md`.\n' > "$target/AGENTS.md"
+}
+
+vault_cmd() {
+  local name="${1:-}" active=""
+  [[ -f "$ACTIVE_VAULT_FILE" ]] && active="$(tr -d '[:space:]' < "$ACTIVE_VAULT_FILE" 2>/dev/null)"
+
+  if [[ -z "$name" ]]; then
+    if [[ -n "$active" && -d "$VAULTS_DIR/$active" ]]; then
+      printf 'active vault: %s  (%s)\n' "$active" "$VAULTS_DIR/$active"
+    else
+      printf 'active vault: default  (%s)\n' "$BRAIN_ROOT/vault"
+    fi
+    printf 'vaults dir:   %s\n\n' "$VAULTS_DIR"
+    if compgen -G "$VAULTS_DIR/*/" >/dev/null 2>&1; then
+      printf 'named vaults:\n'
+      local d n
+      for d in "$VAULTS_DIR"/*/; do
+        n="$(basename "$d")"
+        if [[ "$n" == "$active" ]]; then printf '  * %s\n' "$n"; else printf '    %s\n' "$n"; fi
+      done
+    else
+      printf 'no named vaults yet — create/switch with: %s vault <name>\n' "$CMD_NAME"
+    fi
+    if [[ -n "$ENV_BRAIN_VAULT" ]]; then
+      printf '\nnote: BRAIN_VAULT is pinned in your environment (%s);\n' "$ENV_BRAIN_VAULT"
+      printf '      switching has no effect until you unset it or run "%s reinit".\n' "$CMD_NAME"
+    fi
+    return 0
+  fi
+
+  mkdir -p "$BRAIN_ROOT"
+  case "$name" in
+    default|legacy)
+      rm -f "$ACTIVE_VAULT_FILE"
+      printf 'synapse: active vault -> default (%s)\n' "$BRAIN_ROOT/vault"
+      ;;
+    */*|.*)
+      printf 'synapse: invalid vault name: %s\n' "$name" >&2
+      return 2
+      ;;
+    *)
+      local target="$VAULTS_DIR/$name"
+      if [[ ! -d "$target" ]]; then
+        printf 'synapse: creating new vault "%s"\n' "$name"
+        scaffold_vault "$target"
+      fi
+      printf '%s\n' "$name" > "$ACTIVE_VAULT_FILE"
+      printf 'synapse: active vault -> %s (%s)\n' "$name" "$target"
+      ;;
+  esac
+
+  if [[ -n "$ENV_BRAIN_VAULT" ]]; then
+    printf 'note: BRAIN_VAULT is pinned in your environment; run "%s reinit" and open a new shell to apply.\n' "$CMD_NAME" >&2
+  fi
+}
+
 case "${1:-}" in
   ""|-h|--help)
     usage
     exit 0
+    ;;
+  vault)
+    vault_cmd "${2:-}"
+    exit $?
     ;;
   status)
     status
