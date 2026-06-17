@@ -5,6 +5,8 @@
 - README: "Adding content" guide — manual drop into the right folder, then let the agent
   normalize frontmatter/tags/links/index and run `synapse check`; plus agent-driven ingestion
   of an external source (URL, Git repo, document) with provenance in `sources`.
+- New starter skill `file-into-vault` — rated procedure for filing a draft or external source
+  into the vault; installed alongside `distill-after-work`.
 
 ## 0.3.0
 

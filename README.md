@@ -240,8 +240,9 @@ managed by `synapse skill` — see [Skills library](#skills-library-rated).
 
 ## Skills library (rated)
 
-Starter vault includes one example skill (`distill-after-work`). Add your own under
-`vault/skills/` or use a [custom layout](docs/CUSTOM-LAYOUT.md) for monorepo skill dirs.
+Starter vault includes two example skills — `distill-after-work` and `file-into-vault`
+(the [Adding content](#adding-content) procedure). Add your own under `vault/skills/` or
+use a [custom layout](docs/CUSTOM-LAYOUT.md) for monorepo skill dirs.
 
 ```bash
 synapse skill use   distill-after-work

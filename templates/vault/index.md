@@ -15,6 +15,7 @@ title: Wiki Index
 ## Skills
 
 - [[distill-after-work]] — rated skill: distill learnings into atomic notes after work ( #skills #workflow)
+- [[file-into-vault]] — rated skill: file a draft or external source into the vault with provenance ( #skills #workflow #knowledge)
 
 ## Projects
 
