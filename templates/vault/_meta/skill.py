@@ -20,6 +20,7 @@ Every change is also appended to <skills>/_ratings.log for provenance.
 from __future__ import annotations
 
 import datetime as dt
+import fcntl
 import glob
 import os
 import re
@@ -96,7 +97,9 @@ def logline(action: str, name: str, value: str, note: str) -> None:
     os.makedirs(SKILLS_DIR, exist_ok=True)
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     with open(LOG, "a", encoding="utf-8") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)  # Lock to prevent concurrent writes
         f.write(f"[{stamp}] {action} {name} value={value} note={note!r}\n")
+        fcntl.flock(f, fcntl.LOCK_UN)  # Unlock
 
 
 def cmd_use(name: str) -> int:

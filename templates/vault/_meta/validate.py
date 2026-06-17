@@ -26,14 +26,14 @@ def parse_tags(raw: str) -> list[str]:
 
 
 def parse_frontmatter(text: str) -> dict[str, str] | None:
-    if not text.startswith("---"):
+    if not text.lstrip().startswith("---"):
         return None
     end = text.find("\n---", 3)
     if end == -1:
         return None
     frontmatter: dict[str, str] = {}
     for line in text[3:end].splitlines():
-        if ":" in line and not line.startswith(" "):
+        if ":" in line and not line.lstrip().startswith("#"):  # Skip comments
             key, _, value = line.partition(":")
             frontmatter[key.strip()] = value.strip()
     return frontmatter

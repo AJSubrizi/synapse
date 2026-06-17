@@ -28,7 +28,17 @@ BRAIN_SKILLS_DIR="${BRAIN_SKILLS_DIR:-$BRAIN_VAULT/skills}"
 
 vault_hash() {
   if [[ -f "$BRAIN_VAULT/index.md" ]]; then
-    cksum "$BRAIN_VAULT/index.md" 2>/dev/null | awk '{print $1}'
+    # Use sha256sum (Linux), shasum (macOS), or md5sum as fallback
+    if command -v sha256sum >/dev/null 2>&1; then
+      sha256sum "$BRAIN_VAULT/index.md" 2>/dev/null | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+      shasum -a 256 "$BRAIN_VAULT/index.md" 2>/dev/null | awk '{print $1}'
+    elif command -v md5sum >/dev/null 2>&1; then
+      md5sum "$BRAIN_VAULT/index.md" 2>/dev/null | awk '{print $1}'
+    else
+      # Fallback to cksum if nothing else is available
+      cksum "$BRAIN_VAULT/index.md" 2>/dev/null | awk '{print $1}'
+    fi
   else
     printf 'none'
   fi
@@ -53,16 +63,24 @@ Usage:
   $CMD_NAME vault [name]     list vaults, or switch to / create vault <name>
   $CMD_NAME status           vault active? session id, staleness
   $CMD_NAME check            read-only quality gate: validate + dedup
+  $CMD_NAME search [opts]    search vault notes by query, tag, or title
   $CMD_NAME skill <cmd>      skill scorecards: list | use | rate | show
   $CMD_NAME doctor           verify boot files exist
   $CMD_NAME which <cmd>      resolve command (and if Synapse wraps it)
   $CMD_NAME reinit           idempotently (re)write the shell-rc block
   $CMD_NAME env              print environment
 
+Search options:
+  --tag <tag>       filter by tag
+  --title <title>   filter by title
+  --exact           exact string match (no regex)
+
 Examples:
   $CMD_NAME codex
   $CMD_NAME claude
   $CMD_NAME opencode
+  $CMD_NAME search --tag security
+  $CMD_NAME search "FastAPI rate limit"
 
 Legacy: \`brain\` is a symlink to \`synapse\` when installed via install.sh.
 EOF
@@ -185,6 +203,83 @@ which_cmd() {
   fi
 }
 
+search() {
+  local query="${1:-}" tag="" title="" exact=""
+  if [[ -z "$query" ]]; then
+    printf 'usage: %s search [--tag <tag>] [--title <title>] [--exact] <query>\n' "$CMD_NAME" >&2
+    return 2
+  fi
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --tag)
+        tag="$2"
+        shift 2
+        ;;
+      --title)
+        title="$2"
+        shift 2
+        ;;
+      --exact)
+        exact="--fixed-strings"
+        shift
+        ;;
+      *)
+        query="$1"
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "$query" && -z "$tag" && -z "$title" ]]; then
+    printf 'synapse: no search query or filter provided\n' >&2
+    return 2
+  fi
+
+  local search_dir="$BRAIN_VAULT"
+  local results=()
+
+  # Search by tag
+  if [[ -n "$tag" ]]; then
+    while IFS= read -r line; do
+      if grep -q "tags:.*\b$tag\b" "$line" 2>/dev/null; then
+        results+=("$line")
+      fi
+    done < <(find "$search_dir" -name "*.md" -type f ! -path "*/_meta/*" 2>/dev/null)
+  fi
+
+  # Search by title
+  if [[ -n "$title" ]]; then
+    while IFS= read -r line; do
+      if grep -q "title:.*$title" "$line" 2>/dev/null; then
+        results+=("$line")
+      fi
+    done < <(find "$search_dir" -name "*.md" -type f ! -path "*/_meta/*" 2>/dev/null)
+  fi
+
+  # Search by query (content)
+  if [[ -n "$query" ]]; then
+    while IFS= read -r line; do
+      if grep -q $exact "$query" "$line" 2>/dev/null; then
+        results+=("$line")
+      fi
+    done < <(find "$search_dir" -name "*.md" -type f ! -path "*/_meta/*" 2>/dev/null)
+  fi
+
+  # Deduplicate and print results
+  if [[ ${#results[@]} -eq 0 ]]; then
+    printf 'synapse: no results found\n' >&2
+    return 1
+  fi
+
+  printf 'Results:\n'
+  printf '%s\n' "${results[@]}" | sort -u | while read -r file; do
+    rel="$(realpath --relative-to="$search_dir" "$file" 2>/dev/null || echo "$file")"
+    printf '  - %s\n' "$rel"
+  done
+}
+
 # Seed a new named vault: inherit the engine + workflow from an existing vault,
 # but start with an empty knowledge surface.
 scaffold_vault() {
@@ -232,6 +327,7 @@ vault_cmd() {
     if [[ -n "$ENV_BRAIN_VAULT" ]]; then
       printf '\nnote: BRAIN_VAULT is pinned in your environment (%s);\n' "$ENV_BRAIN_VAULT"
       printf '      switching has no effect until you unset it or run "%s reinit".\n' "$CMD_NAME"
+      return 0
     fi
     return 0
   fi
@@ -259,6 +355,7 @@ vault_cmd() {
 
   if [[ -n "$ENV_BRAIN_VAULT" ]]; then
     printf 'note: BRAIN_VAULT is pinned in your environment; run "%s reinit" and open a new shell to apply.\n' "$CMD_NAME" >&2
+    return 0
   fi
 }
 
@@ -277,6 +374,11 @@ case "${1:-}" in
     ;;
   check)
     check
+    exit $?
+    ;;
+  search)
+    shift
+    search "$@"
     exit $?
     ;;
   skill)
