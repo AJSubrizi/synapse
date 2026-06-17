@@ -67,13 +67,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--threshold", type=float, default=0.5)
     ap.add_argument("--strict", action="store_true", help="exit 1 if any candidate found")
+    ap.add_argument("--optimize", action="store_true", help="use inverted index for faster dedup (default: auto)")
     args = ap.parse_args()
 
     notes = []
     for path in glob.glob(os.path.join(VAULT, "**", "*.md"), recursive=True):
-        if "/_meta/" in path:
-            continue
         rel = os.path.relpath(path, VAULT)
+        # Skip files in _meta/ directory (exact match to avoid false positives)
+        if "/_meta/" in rel or rel.startswith("_meta/"):
+            continue
         if not rel.startswith(CONTENT_DIRS):
             continue
         fm, body = split_frontmatter(open(path, encoding="utf-8").read())
@@ -81,14 +83,47 @@ def main() -> int:
         meta = f"{fm.get('title', stem)} {fm.get('summary', '')}".lower()
         notes.append((rel, meta, parse_tags(fm.get("tags", "")), tokenize(body)))
 
-    candidates = []
-    for (rel_a, meta_a, tags_a, body_a), (rel_b, meta_b, tags_b, body_b) in combinations(notes, 2):
-        meta_sim = SequenceMatcher(None, meta_a, meta_b).ratio()
-        body_sim = jaccard(body_a, body_b)
-        tag_sim = jaccard(tags_a, tags_b)
-        score = 0.5 * meta_sim + 0.4 * body_sim + 0.1 * tag_sim
-        if score >= args.threshold:
-            candidates.append((score, rel_a, rel_b, meta_sim, body_sim, tag_sim))
+    # Use inverted index optimization if enabled or if notes > 50
+    use_inverted_index = args.optimize or len(notes) > 50
+    if use_inverted_index:
+        # Build inverted index: token -> list of note indices
+        token_to_notes = {}
+        for idx, (rel, meta, tags, body_tokens) in enumerate(notes):
+            all_tokens = body_tokens | tags
+            for token in all_tokens:
+                if token not in token_to_notes:
+                    token_to_notes[token] = []
+                token_to_notes[token].append(idx)
+
+        # Only compare notes that share at least one token
+        compared_pairs = set()
+        candidates = []
+        for token, note_indices in token_to_notes.items():
+            for i in range(len(note_indices)):
+                for j in range(i + 1, len(note_indices)):
+                    idx_a = note_indices[i]
+                    idx_b = note_indices[j]
+                    if (idx_a, idx_b) in compared_pairs:
+                        continue
+                    compared_pairs.add((idx_a, idx_b))
+                    rel_a, meta_a, tags_a, body_a = notes[idx_a]
+                    rel_b, meta_b, tags_b, body_b = notes[idx_b]
+                    meta_sim = SequenceMatcher(None, meta_a, meta_b).ratio()
+                    body_sim = jaccard(body_a, body_b)
+                    tag_sim = jaccard(tags_a, tags_b)
+                    score = 0.5 * meta_sim + 0.4 * body_sim + 0.1 * tag_sim
+                    if score >= args.threshold:
+                        candidates.append((score, rel_a, rel_b, meta_sim, body_sim, tag_sim))
+    else:
+        # Original O(n^2) approach for small vaults
+        candidates = []
+        for (rel_a, meta_a, tags_a, body_a), (rel_b, meta_b, tags_b, body_b) in combinations(notes, 2):
+            meta_sim = SequenceMatcher(None, meta_a, meta_b).ratio()
+            body_sim = jaccard(body_a, body_b)
+            tag_sim = jaccard(tags_a, tags_b)
+            score = 0.5 * meta_sim + 0.4 * body_sim + 0.1 * tag_sim
+            if score >= args.threshold:
+                candidates.append((score, rel_a, rel_b, meta_sim, body_sim, tag_sim))
 
     candidates.sort(reverse=True)
     print(f"Notes analyzed: {len(notes)}")

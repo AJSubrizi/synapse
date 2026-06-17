@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Check for Python 3 (required for validate.py, dedup.py, skill.py)
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Error: python3 is required for Synapse tools (validate.py, dedup.py, skill.py)." >&2
+  echo "Install Python 3 and retry." >&2
+  exit 1
+fi
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${PREFIX:-$HOME/.local/bin}"
 # Canonical home: SYNAPSE_HOME. BRAIN_ROOT/BRAIN_HOME kept as legacy fallbacks.
@@ -20,6 +27,9 @@ copy_if_missing() {
   if [ ! -e "$dst" ]; then
     mkdir -p "$(dirname "$dst")"
     cp "$src" "$dst"
+  else
+    # Skip if file exists to avoid overwriting user files (e.g., ~/AGENTS.md)
+    printf 'synapse: skipping existing file: %s\n' "$dst" >&2
   fi
 }
 
