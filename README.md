@@ -13,12 +13,21 @@ Gemini, OpenCode, Cursor Agent, and others). It ships a rated **skills library**
 (scorecards on Markdown procedures) and pairs well with [RTK](https://github.com/rtk-ai/rtk)
 (short-term token savings).
 
+![A Synapse vault visualized as a graph in Obsidian](docs/assets/synapse-graph.png)
+
+> A real vault, viewed in Obsidian. Each node is a Markdown note — skills
+> (`skills-library`, `frontend-stack`), conventions (`tailwind-shadcn-styling`,
+> `rest-api-design`), and project knowledge — wired together with `[[wikilinks]]`
+> the agent walks before it works.
+
 ## Contents
 
 - [Install](#install)
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
 - [Commands](#commands)
+- [Multiple vaults](#multiple-vaults)
+- [What to put in a vault](#what-to-put-in-a-vault)
 - [Skills library](#skills-library-rated)
 - [Token cost](#token-cost)
 - [Custom layouts](docs/CUSTOM-LAYOUT.md)
@@ -79,6 +88,8 @@ staleness, subagents).
 
 ```bash
 synapse status       # active? vault, session, staleness
+synapse vault        # list vaults / show active
+synapse vault NAME   # switch to (or create) a named vault
 synapse check        # validate + dedup (read-only)
 synapse doctor       # boot files exist?
 synapse skill list   # ranked skills library
@@ -88,6 +99,66 @@ synapse <cli>        # run agent with vault env
 ```
 
 `brain` remains a symlink to `synapse` for backward compatibility.
+
+## Multiple vaults
+
+Keep separate knowledge bases for separate domains and switch between them with one
+command — the next `synapse <cli>` launch picks up the active vault automatically.
+
+```bash
+synapse vault cybersecurity   # create + switch (first run scaffolds it)
+synapse vault web-design      # switch to another domain
+synapse vault                 # list vaults, '*' marks the active one
+synapse vault default         # back to the default ~/Synapse/vault
+```
+
+Named vaults live under `~/Synapse/vaults/<name>` and inherit the engine + workflow from
+your current vault, starting with an empty knowledge surface. The active vault is recorded
+in `~/Synapse/.active-vault`. Setting `BRAIN_VAULT` explicitly pins a vault and bypasses the
+switcher.
+
+## What to put in a vault
+
+A vault is just Markdown the agent reads in Phase 0. Some patterns that pay off:
+
+**Skills** — reusable, rated procedures under `skills/`:
+
+```markdown
+---
+title: Deploy FastAPI to Docker
+tags: [skill, backend, deploy]
+---
+1. Build: `docker build -t app .`
+2. Run migrations: `alembic upgrade head`
+3. Health-check `/healthz` before flipping traffic.
+```
+
+**Security rules** — guardrails the agent must honor before touching code:
+
+```markdown
+---
+title: Security baseline
+tags: [policy, security]
+---
+- Never log secrets, tokens, or PII; redact in error paths.
+- All new endpoints require authz checks + input validation.
+- Treat user input as hostile: parametrize queries, no shell interpolation.
+```
+
+**Working on a huge legacy codebase** — conventions that keep the agent from breaking things:
+
+```markdown
+---
+title: Legacy monolith — rules of engagement
+tags: [project, legacy]
+---
+- Read `concepts/architecture.md` before editing any module.
+- Change one module per PR; no cross-cutting refactors without sign-off.
+- The `billing/` package is load-bearing and untested — add tests before edits.
+- Match the surrounding style; do not introduce new frameworks.
+```
+
+Link related notes with `[[wikilinks]]` so the agent can traverse from one to the next.
 
 ## Skills library (rated)
 
