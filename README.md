@@ -28,6 +28,7 @@ Gemini, OpenCode, Cursor Agent, and others). It ships a rated **skills library**
 - [Commands](#commands)
 - [Multiple vaults](#multiple-vaults)
 - [What to put in a vault](#what-to-put-in-a-vault)
+- [Adding content](#adding-content)
 - [Skills library](#skills-library-rated)
 - [Token cost](#token-cost)
 - [Custom layouts](docs/CUSTOM-LAYOUT.md)
@@ -159,6 +160,66 @@ tags: [project, legacy]
 ```
 
 Link related notes with `[[wikilinks]]` so the agent can traverse from one to the next.
+
+## Adding content
+
+A vault is plain Markdown — there is no import step. The recommended workflow is
+**you write the high-signal content by hand, the agent normalizes the rest.**
+
+### 1. Drop a Markdown file in the right folder
+
+| Folder | Holds |
+| --- | --- |
+| `skills/` | Rated, reusable procedures (the [skills library](#skills-library-rated)) |
+| `concepts/` | Durable ideas, conventions, mental models |
+| `references/` | External facts, API notes, cheat sheets |
+| `projects/` | Per-project knowledge and decisions |
+| `entities/` | People, services, systems you keep referring to |
+| `synthesis/` | Hubs that tie many notes together (use once the index passes ~80 entries) |
+| `journal/` | Quick capture / dated notes to refine later |
+
+The minimum is a title and a body — don't sweat the metadata:
+
+```markdown
+# Rate-limit FastAPI endpoints
+
+Use `slowapi` with a Redis backend. Decorate routes with `@limiter.limit("5/minute")`.
+Return 429 with a `Retry-After` header.
+```
+
+### 2. Let the agent finish it
+
+In your next session, point the agent at the note and ask it to **file it into the
+vault**. Following `_meta/workflow.md`, it will:
+
+- add the required frontmatter (`title`, `category`, `tags`, `sources`, `summary`,
+  `created`, `updated`) — tags drawn from `_meta/taxonomy.md`;
+- add `[[wikilinks]]` to related notes;
+- register it under the right heading in `index.md`;
+- run `synapse check` (validate + near-duplicate detection).
+
+If you'd rather write it fully by hand, the complete frontmatter looks like:
+
+```markdown
+---
+title: Rate-limit FastAPI endpoints
+category: references
+tags: [backend, security]
+sources: [team-runbook]
+summary: Per-route rate limiting with slowapi + Redis, returning 429 + Retry-After.
+created: 2026-06-17T00:00:00Z
+updated: 2026-06-17T00:00:00Z
+---
+```
+
+Validate any time with:
+
+```bash
+synapse check
+```
+
+Skills are the same flow plus a scorecard block (`uses`, `score`, `votes`, `last_used`)
+managed by `synapse skill` — see [Skills library](#skills-library-rated).
 
 ## Skills library (rated)
 

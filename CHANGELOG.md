@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- README: "Adding content" guide — manual drop into the right folder, then let the agent
+  normalize frontmatter/tags/links/index and run `synapse check`.
+
 ## 0.3.0
 
 - **Multiple vaults**: `synapse vault <name>` switches to (or scaffolds) a named vault under
