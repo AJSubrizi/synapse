@@ -198,6 +198,23 @@ vault**. Following `_meta/workflow.md`, it will:
 - register it under the right heading in `index.md`;
 - run `synapse check` (validate + near-duplicate detection).
 
+### 3. Or hand the agent a source to ingest
+
+When you launch an agent through Synapse (`synapse claude`, `synapse codex`,
+`synapse gemini`, …) the vault is already loaded. Point it at an external source — a URL,
+a Git repo, a local document — and ask it to add it:
+
+```text
+"Read https://github.com/owner/repo and add a concept note on its architecture to the vault."
+"Ingest this RFC (URL or file) into references/ and link it to [[rest-api-design]]."
+"Clone <repo>, summarize its auth flow, and save it as a skill."
+```
+
+The agent fetches the page / repo / document with its own tools, distills it into atomic
+notes, records where it came from in the `sources:` frontmatter, cross-links, updates
+`index.md`, and runs `synapse check`. Keep the source concrete (a link, a path, a repo) so
+the note stays traceable back to its origin.
+
 If you'd rather write it fully by hand, the complete frontmatter looks like:
 
 ```markdown
