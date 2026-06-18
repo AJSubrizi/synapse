@@ -1,0 +1,25 @@
+[
+  {
+    "qa": [
+      {"question": "When did Caroline go to the LGBTQ support group?", "answer": "7 May 2023", "evidence": ["D1:3"], "category": 2},
+      {"question": "What did Caroline research about adoption?", "answer": "Adoption agencies", "evidence": ["D2:2"], "category": 1},
+      {"question": "What hobby does Melanie enjoy outdoors?", "answer": "Camping and hiking", "evidence": ["D1:5", "D2:4"], "category": 3},
+      {"question": "Is there a unicorn in the conversation?", "answer": "Not mentioned", "evidence": [], "category": 5}
+    ],
+    "conversation": {
+      "session_1": [
+        {"dia_id": "D1:1", "speaker": "Melanie", "text": "Hey Caroline, how was your week?"},
+        {"dia_id": "D1:2", "speaker": "Caroline", "text": "Pretty busy, lots going on."},
+        {"dia_id": "D1:3", "speaker": "Caroline", "text": "I went to the LGBTQ support group on 7 May 2023, it was really affirming."},
+        {"dia_id": "D1:4", "speaker": "Melanie", "text": "That's wonderful to hear."},
+        {"dia_id": "D1:5", "speaker": "Melanie", "text": "I'm getting into camping lately, planning a big trip."}
+      ],
+      "session_2": [
+        {"dia_id": "D2:1", "speaker": "Caroline", "text": "I've been thinking about starting a family."},
+        {"dia_id": "D2:2", "speaker": "Caroline", "text": "I spent the weekend researching adoption agencies and their requirements."},
+        {"dia_id": "D2:3", "speaker": "Melanie", "text": "That's a big step, good for you."},
+        {"dia_id": "D2:4", "speaker": "Melanie", "text": "We should go hiking together sometime, outdoors is my happy place."}
+      ]
+    }
+  }
+]
