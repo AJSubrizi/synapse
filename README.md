@@ -20,18 +20,30 @@ Gemini, OpenCode, Cursor Agent, and others). It ships a rated **skills library**
 > `rest-api-design`), and project knowledge — wired together with `[[wikilinks]]`
 > the agent walks before it works.
 
+**Highlights**
+
+- **Plain Markdown, no database, no lock-in** — your memory is files you own, browsable in Obsidian or any editor.
+- **Works with any agentic CLI** — Claude Code, Codex, Gemini, OpenCode, Cursor; wired up in one command (`synapse setup`).
+- **Rated skills library** — reusable procedures with scorecards, dependencies, and versioning.
+- **Optional file-based retrieval** — search, ranked query, and a TF-IDF index, all offline; **BM25 hits ~90% nDCG@10 on LongMemEval** ([benchmarks](#benchmarks)).
+- **Quality gate built in** — `synapse check --strict` keeps the vault from rotting over many distillation cycles.
+
 ## Contents
 
 - [Install](#install)
 - [Quick start](#quick-start)
 - [How it works](#how-it-works)
 - [Commands](#commands)
+- [Retrieval](#retrieval-optional)
+- [Benchmarks](#benchmarks)
 - [Multiple vaults](#multiple-vaults)
 - [What to put in a vault](#what-to-put-in-a-vault)
 - [Adding content](#adding-content)
 - [Skills library](#skills-library-rated)
 - [Token cost](#token-cost)
+- [Claude Code hooks](#claude-code-hooks)
 - [Custom layouts](docs/CUSTOM-LAYOUT.md)
+- [Uninstall](#uninstall)
 - [FAQ](#faq)
 
 ## Install
@@ -130,22 +142,23 @@ The vault works with just the agent + `[[wikilinks]]`. As it grows, three option
 
 See a worked distillation example in [`examples/distillation/`](examples/distillation/).
 
-### Benchmarks
+## Benchmarks
 
-Retrieval quality is measured on the [LoCoMo](https://github.com/snap-research/locomo)
-long-conversation dataset — **fully offline, zero API cost**. On 1,982 answerable
-questions across 10 conversations, the no-dependency BM25 backend reaches **Recall@5 46.6%
-/ nDCG@10 39.8%** at turn level, and **Recall@5 83.6% / nDCG@10 77.1%** at session level
-(closer to how Synapse stores distilled notes). These are retrieval-only numbers and are
-not comparable to LLM answer-accuracy figures. Full method, table, and reproduction:
-[`benchmarks/locomo/`](benchmarks/locomo/).
+Retrieval is measured on two long-conversation memory datasets — **fully offline, zero API
+cost**, with the no-dependency BM25 backend:
 
-A second dataset, [`benchmarks/longmemeval/`](benchmarks/longmemeval/), confirms the
-retriever generalises beyond LoCoMo. On LongMemEval-S (470 answerable questions, session
-granularity) BM25 reaches **Recall@5 91.2% / nDCG@10 89.8% [88.0, 91.8]** — still fully
-offline, no dependencies. Both benchmarks share
-[`benchmarks/retrieval_eval.py`](benchmarks/retrieval_eval.py) so results are directly
-comparable.
+| Dataset | Granularity | Questions | Recall@5 | nDCG@10 (95% CI) |
+| --- | --- | --- | --- | --- |
+| [LoCoMo](https://github.com/snap-research/locomo) | turn | 1,982 | 46.6% | 39.8% [37.6, 41.7] |
+| [LoCoMo](https://github.com/snap-research/locomo) | session | 1,982 | 83.6% | 77.1% [74.8, 79.7] |
+| [LongMemEval-S](https://github.com/xiaowu0162/LongMemEval) | session | 470 | **91.2%** | **89.8% [88.0, 91.8]** |
+
+Session granularity is closer to how Synapse stores distilled notes (not raw turns), and a
+second dataset shows the retriever generalises. These are **retrieval-only** numbers —
+*not* comparable to LLM answer-accuracy figures from papers. Method, full per-category
+tables, and one-command reproduction live in
+[`benchmarks/`](benchmarks/) (both datasets share
+[`retrieval_eval.py`](benchmarks/retrieval_eval.py), so results are directly comparable).
 
 ## Multiple vaults
 
@@ -173,7 +186,7 @@ A vault is just Markdown the agent reads in Phase 0. Some patterns that pay off:
 ```markdown
 ---
 title: Deploy FastAPI to Docker
-tags: [skill, backend, deploy]
+tags: [skills, backend, devops]
 ---
 1. Build: `docker build -t app .`
 2. Run migrations: `alembic upgrade head`
@@ -185,7 +198,7 @@ tags: [skill, backend, deploy]
 ```markdown
 ---
 title: Security baseline
-tags: [policy, security]
+tags: [security]
 ---
 - Never log secrets, tokens, or PII; redact in error paths.
 - All new endpoints require authz checks + input validation.
@@ -197,7 +210,7 @@ tags: [policy, security]
 ```markdown
 ---
 title: Legacy monolith — rules of engagement
-tags: [project, legacy]
+tags: [project, architecture]
 ---
 - Read `concepts/architecture.md` before editing any module.
 - Change one module per PR; no cross-cutting refactors without sign-off.
@@ -286,14 +299,23 @@ managed by `synapse skill` — see [Skills library](#skills-library-rated).
 
 ## Skills library (rated)
 
-Starter vault includes two example skills — `distill-after-work` and `file-into-vault`
-(the [Adding content](#adding-content) procedure). Add your own under `vault/skills/` or
-use a [custom layout](docs/CUSTOM-LAYOUT.md) for monorepo skill dirs.
+Skills are Markdown procedures with a **scorecard** in their frontmatter (`uses`, `score`,
+`votes`, `last_used`), so the vault becomes a *rated* library, not just notes. The starter
+vault ships two — `distill-after-work` and `file-into-vault` (the
+[Adding content](#adding-content) procedure). Add your own under `vault/skills/` or use a
+[custom layout](docs/CUSTOM-LAYOUT.md) for monorepo skill dirs.
 
 ```bash
-synapse skill use   distill-after-work
-synapse skill rate  distill-after-work 5 "saved a re-derive"
+synapse skill list                       # ranked by score, then uses
+synapse skill use     distill-after-work # +1 use after applying it
+synapse skill rate    distill-after-work 5 "saved a re-derive"
+synapse skill suggest "ingest a repo"    # recommend a skill for the task
+synapse skill deps                       # dependency graph (flags broken requires)
+synapse skill show    distill-after-work # scorecard, version, dependencies
 ```
+
+Skills can declare dependencies (`requires: [[other-skill]]`) and a `version`; `synapse
+check` reports the dependency graph and flags broken links.
 
 ## Token cost
 
