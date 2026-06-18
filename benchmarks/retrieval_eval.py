@@ -227,17 +227,27 @@ def evaluate(prepared, backends, embed_model, granularity_label=""):
     for gi, (units, qas) in enumerate(prepared):
         if not units or not qas:
             continue
+        # Encode embeddings at most once per sample, even if both 'embeddings' and
+        # 'hybrid' are requested (encoding is the expensive part).
+        shared_emb = None
+        if any(b in ("embeddings", "hybrid") for b in backends):
+            shared_emb = build_embeddings(units, embed_model)
+            if shared_emb is None:               # library/model unavailable
+                for b in ("embeddings", "hybrid"):
+                    if b in backends:
+                        backends.remove(b); rec.pop(b, None)
         built = {}
-        for b in list(backends):
-            builder, _, needs_model = BACKENDS[b]
-            if builder is None:
-                built[b] = units                 # lexical ranks straight over units
-                continue
-            model = builder(units, embed_model) if needs_model else builder(units)
-            if model is None:                    # embeddings/hybrid unavailable
-                backends.remove(b); rec.pop(b, None)
-            else:
-                built[b] = model
+        for b in backends:
+            if b == "lexical":
+                built[b] = units
+            elif b == "tfidf":
+                built[b] = build_tfidf(units)
+            elif b == "bm25":
+                built[b] = build_bm25(units)
+            elif b == "embeddings":
+                built[b] = shared_emb
+            elif b == "hybrid":
+                built[b] = (build_bm25(units), shared_emb)
         for qa in qas:
             total_q += 1
             group_ids.append(gi)
