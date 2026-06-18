@@ -14,28 +14,66 @@ LoCoMo has two things you could score:
    This needs no model and no network. It's the honest claim Synapse can make today:
    _"X% recall@k, entirely on your machine, at zero cost."_
 
-**This harness measures (2).** It reports `recall@{1,3,5,10}` and `MRR`, overall and per
-LoCoMo question category, for each retrieval backend. It does not call any LLM.
+**This harness measures (2).** For each backend it reports, overall and per LoCoMo
+category:
 
-The retriever under test is the same one shipped in `synapse search` / `synapse index`:
-identical tokenizer and the same TF-IDF cosine formulation. An optional `embeddings`
-backend (sentence-transformers) is included for comparison and is skipped cleanly if the
-library isn't installed.
+- **Success@k** — any gold evidence unit in the top-k (hit rate)
+- **Recall@k** — fraction of gold units retrieved in top-k (matters for multi-evidence)
+- **nDCG@k** — position-aware, graded by how many gold hits
+- **MRR** — reciprocal rank of the first gold unit
+
+The headline metric (**nDCG@10**) comes with a **95% cluster-bootstrap confidence
+interval** resampled over conversations (N=10 is small, so the CI matters). Each run can
+emit a `results.json` with full metadata (dataset SHA-256, granularity, seed, backends,
+Python version, harness commit) for reproducibility.
+
+### Backends
+
+| backend | deps | notes |
+| --- | --- | --- |
+| `lexical` | none | count-based matching, mirrors `synapse search` body scan |
+| `tfidf` | none | TF-IDF cosine, same formulation as `synapse index` |
+| `bm25` | none | Okapi BM25 — the standard strong lexical IR baseline |
+| `embeddings` | `sentence-transformers` | opt-in; skipped cleanly if not installed |
+
+### Granularity
+
+`--granularity turn` (default) treats each dialogue turn as a retrieval unit;
+`--granularity session` treats each session as a unit. Session granularity is closer to
+how Synapse actually stores memory (distilled notes, not raw turns) and scores much higher.
 
 ## Run it
 
 ```bash
 cd benchmarks/locomo
 
-# fetches data/locomo10.json from snap-research/locomo
+# fetches locomo10.json from snap-research/locomo
 python3 run_locomo.py --download
 
-# default backends: lexical + tfidf (no dependencies)
-python3 run_locomo.py --data locomo10.json
+# default backends: lexical + tfidf + bm25 (no dependencies), with a results file
+python3 run_locomo.py --data locomo10.json --results results.json
+
+# session granularity (closer to Synapse's note-level memory)
+python3 run_locomo.py --granularity session
 
 # add the optional embeddings backend (needs: pip install sentence-transformers)
-python3 run_locomo.py --data locomo10.json --backends lexical tfidf embeddings
+python3 run_locomo.py --backends bm25 embeddings
 ```
+
+## Results (turn-level, 1982 answerable questions, 10 conversations)
+
+| backend | S@1 | S@5 | S@10 | R@5 | R@10 | nDCG@10 (95% CI) | MRR |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| lexical | 19.0% | 38.7% | 48.7% | 35.4% | 44.3% | 30.8% [28.3, 32.7] | 0.289 |
+| tfidf | 22.7% | 45.8% | 55.0% | 42.1% | 50.7% | 35.8% [33.4, 37.7] | 0.335 |
+| **bm25** | **27.2%** | **50.6%** | **58.3%** | **46.6%** | **53.8%** | **39.8% [37.6, 41.7]** | **0.378** |
+
+Session-level (BM25): **S@5 88.5%, R@5 83.6%, nDCG@10 77.1% [74.8, 79.7]** — granularity
+matters more than the backend.
+
+Numbers are retrieval-only and not comparable to QA-accuracy figures from papers. Embeddings
+and hybrid (BM25 + embeddings) backends are expected to lift the turn-level numbers further;
+run them locally to extend the table.
 
 Quick smoke test without the real dataset:
 
