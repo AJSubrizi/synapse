@@ -52,6 +52,24 @@ Identical to the LoCoMo harness (shared `../retrieval_eval.py`):
 - Abstention questions (`*_abs`, no evidence in the haystack) are skipped — there is no
   gold unit to retrieve. (A future answer-accuracy track could score abstention directly.)
 
+## Results (longmemeval_s_cleaned, session granularity, 470 answerable questions)
+
+| backend | S@1 | S@5 | S@10 | R@5 | R@10 | nDCG@10 (95% CI) | MRR |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| lexical | 73.2% | 90.4% | 95.7% | 81.4% | 90.7% | 79.8% [77.3, 82.4] | 0.808 |
+| tfidf | 78.1% | 93.4% | 96.8% | 86.6% | 92.8% | 84.4% [82.0, 86.8] | 0.852 |
+| **bm25** | **87.0%** | **96.8%** | **98.3%** | **91.2%** | **95.0%** | **89.8% [88.0, 91.8]** | **0.912** |
+
+Per category (Recall@5, BM25): knowledge-update 99%, single-session-user 100%,
+single-session-preference 83%, single-session-assistant 100%, multi-session 84%,
+temporal-reasoning 88%.
+
+Retrieval is much stronger here than on LoCoMo's turn-level task: LongMemEval sessions are
+topically distinct, and session-level retrieval is closer to how Synapse stores distilled
+notes. Numbers are retrieval-only and not comparable to LongMemEval's published
+QA-accuracy figures, which generate and judge answers with an LLM. Embeddings/hybrid
+backends are expected to lift the harder categories (multi-session, temporal) further.
+
 ## Caveat
 
 Retrieval-only numbers; not comparable to LongMemEval's published QA-accuracy figures,

@@ -140,8 +140,10 @@ questions across 10 conversations, the no-dependency BM25 backend reaches **Reca
 not comparable to LLM answer-accuracy figures. Full method, table, and reproduction:
 [`benchmarks/locomo/`](benchmarks/locomo/).
 
-A second dataset, [`benchmarks/longmemeval/`](benchmarks/longmemeval/), runs the same
-engine to check the retriever generalises beyond LoCoMo. Both share
+A second dataset, [`benchmarks/longmemeval/`](benchmarks/longmemeval/), confirms the
+retriever generalises beyond LoCoMo. On LongMemEval-S (470 answerable questions, session
+granularity) BM25 reaches **Recall@5 91.2% / nDCG@10 89.8% [88.0, 91.8]** — still fully
+offline, no dependencies. Both benchmarks share
 [`benchmarks/retrieval_eval.py`](benchmarks/retrieval_eval.py) so results are directly
 comparable.
 
