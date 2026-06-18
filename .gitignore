@@ -17,5 +17,6 @@ digest.md
 # Benchmark datasets (downloaded on demand) + generated results
 benchmarks/locomo/locomo10.json
 benchmarks/longmemeval/longmemeval_*.json
+benchmarks/longmemeval/LongMemEval-main/
 benchmarks/*/results.json
 
