@@ -14,3 +14,7 @@ __pycache__/
 retrieval.json
 digest.md
 
+# Benchmark dataset (downloaded on demand) + generated results
+benchmarks/locomo/locomo10.json
+benchmarks/locomo/results.json
+

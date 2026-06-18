@@ -130,6 +130,16 @@ The vault works with just the agent + `[[wikilinks]]`. As it grows, three option
 
 See a worked distillation example in [`examples/distillation/`](examples/distillation/).
 
+### Benchmarks
+
+Retrieval quality is measured on the [LoCoMo](https://github.com/snap-research/locomo)
+long-conversation dataset — **fully offline, zero API cost**. On 1,982 answerable
+questions across 10 conversations, the no-dependency BM25 backend reaches **Recall@5 46.6%
+/ nDCG@10 39.8%** at turn level, and **Recall@5 83.6% / nDCG@10 77.1%** at session level
+(closer to how Synapse stores distilled notes). These are retrieval-only numbers and are
+not comparable to LLM answer-accuracy figures. Full method, table, and reproduction:
+[`benchmarks/locomo/`](benchmarks/locomo/).
+
 ## Multiple vaults
 
 Keep separate knowledge bases for separate domains and switch between them with one
