@@ -83,6 +83,8 @@ def main() -> int:
                     choices=list(re_eval.BACKENDS))
     ap.add_argument("--granularity", default="turn", choices=["turn", "session"])
     ap.add_argument("--embed-model", default="all-MiniLM-L6-v2")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="only evaluate the first N conversations (quick smoke run)")
     ap.add_argument("--results", default="")
     args = ap.parse_args()
 
@@ -97,6 +99,8 @@ def main() -> int:
 
     data = json.load(open(args.data, encoding="utf-8"))
     samples = data if isinstance(data, list) else [data]
+    if args.limit:
+        samples = samples[:args.limit]
     print(f"loaded {len(samples)} conversation(s) from {args.data}", file=sys.stderr)
     prepared = [(units_of(s, args.granularity), qa_of(s)) for s in samples]
 
