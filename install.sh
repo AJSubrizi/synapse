@@ -62,17 +62,25 @@ copy_if_missing "$REPO_DIR/templates/vault/_meta/taxonomy.md" "$BRAIN_VAULT/_met
 copy_if_missing "$REPO_DIR/templates/vault/_meta/validate.py" "$BRAIN_VAULT/_meta/validate.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/dedup.py" "$BRAIN_VAULT/_meta/dedup.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/skill.py" "$BRAIN_VAULT/_meta/skill.py"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/search.py" "$BRAIN_VAULT/_meta/search.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/stop-check.sh"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/session-enforce.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh"
 copy_if_missing "$REPO_DIR/templates/vault/concepts/workflow.md" "$BRAIN_VAULT/concepts/workflow.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/distill-after-work.md" "$BRAIN_VAULT/skills/distill-after-work.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/file-into-vault.md" "$BRAIN_VAULT/skills/file-into-vault.md"
-chmod +x "$BRAIN_VAULT/_meta/validate.py" "$BRAIN_VAULT/_meta/dedup.py" "$BRAIN_VAULT/_meta/skill.py"
+chmod +x "$BRAIN_VAULT/_meta/validate.py" "$BRAIN_VAULT/_meta/dedup.py" "$BRAIN_VAULT/_meta/skill.py" "$BRAIN_VAULT/_meta/search.py"
 chmod +x "$BRAIN_VAULT/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh" 2>/dev/null || true
 
 copy_if_missing "$REPO_DIR/templates/AGENTS.md" "$HOME/AGENTS.md"
 copy_if_missing "$REPO_DIR/templates/CLAUDE.md" "$HOME/CLAUDE.md"
 copy_if_missing "$REPO_DIR/templates/GEMINI.md" "$HOME/GEMINI.md"
+
+# Stash the context-file templates so `synapse setup <target>` works post-install
+# (the installed CLI has no repo checkout beside it).
+mkdir -p "$BRAIN_ROOT/templates"
+copy_if_missing "$REPO_DIR/templates/AGENTS.md" "$BRAIN_ROOT/templates/AGENTS.md"
+copy_if_missing "$REPO_DIR/templates/CLAUDE.md" "$BRAIN_ROOT/templates/CLAUDE.md"
+copy_if_missing "$REPO_DIR/templates/GEMINI.md" "$BRAIN_ROOT/templates/GEMINI.md"
 
 BRAIN_ROOT="$BRAIN_ROOT" BRAIN_VAULT="$BRAIN_VAULT" SHELL_RC="$SHELL_RC" \
   "$PREFIX/synapse" reinit >/dev/null

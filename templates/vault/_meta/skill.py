@@ -67,6 +67,17 @@ def get(fm: list[str], key: str) -> str | None:
     return None
 
 
+def requires_of(fm: list[str]) -> list[str]:
+    """Skill dependencies declared as `requires: [[a]], [[b]]` (or a bare list)."""
+    raw = get(fm, "requires")
+    if not raw:
+        return []
+    deps = re.findall(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", raw)
+    if not deps:
+        deps = [t.strip() for t in raw.strip("[] ").split(",") if t.strip()]
+    return [d.split("/")[-1].strip() for d in deps]
+
+
 def card(fm: list[str]) -> dict[str, float]:
     return {
         "uses": int(float(get(fm, "uses") or 0)),
@@ -176,9 +187,16 @@ def cmd_show(name: str) -> int:
     c = card(fm)
     print(f"skill:     {name}")
     print(f"file:      {os.path.relpath(path, SKILLS_DIR)}")
+    print(f"version:   {get(fm, 'version') or '1'}")
     print(f"score:     {c['score']:.2f} ({int(c['votes'])} votes)" if c["votes"] else "score:     - (no votes)")
     print(f"uses:      {int(c['uses'])}")
     print(f"last_used: {get(fm, 'last_used') or '-'}")
+    deps = requires_of(fm)
+    if deps:
+        print("requires:")
+        for dep in deps:
+            mark = "ok " if resolve(dep) else "MISS"
+            print(f"  [{mark}] {dep}")
     if os.path.isfile(LOG):
         hist = [ln for ln in open(LOG, encoding="utf-8") if f" {name} " in ln][-5:]
         if hist:
@@ -186,6 +204,64 @@ def cmd_show(name: str) -> int:
             for ln in hist:
                 print("  " + ln.rstrip())
     return 0
+
+
+def _tokens(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) >= 3}
+
+
+def cmd_suggest(query: str, limit: int = 5) -> int:
+    """Recommend skills for a context/query: relevance (title/tags/summary overlap)
+    nudged by reputation (score, uses). Pure ranking — picks among existing skills."""
+    q = _tokens(query)
+    if not q:
+        print("usage: skill.py suggest <context words>", file=sys.stderr)
+        return 2
+    rows = []
+    for p in all_skills():
+        fm, _ = split_fm(open(p, encoding="utf-8").read())
+        if not fm:
+            continue
+        name = get(fm, "title") or os.path.splitext(os.path.basename(p))[0]
+        hay = _tokens(" ".join(filter(None, [
+            get(fm, "title"), get(fm, "tags"), get(fm, "summary")])))
+        overlap = len(q & hay)
+        if not overlap:
+            continue
+        c = card(fm)
+        rank = overlap + 0.1 * c["score"] + 0.01 * c["uses"]
+        rows.append((rank, overlap, c["score"], int(c["uses"]), name,
+                     get(fm, "summary") or ""))
+    rows.sort(reverse=True)
+    if not rows:
+        print(f"no skill matches: {query}")
+        return 0
+    for rank, overlap, score, uses, name, summary in rows[:limit]:
+        s = f"{score:.1f}" if score else "-"
+        print(f"  {name}  (match {overlap}, score {s}, uses {uses})")
+        if summary:
+            print(f"      {summary}")
+    return 0
+
+
+def cmd_deps() -> int:
+    """Report the dependency graph and flag broken `requires` links across all skills."""
+    broken = 0
+    for p in all_skills():
+        fm, _ = split_fm(open(p, encoding="utf-8").read())
+        name = get(fm, "title") or os.path.splitext(os.path.basename(p))[0]
+        deps = requires_of(fm)
+        if not deps:
+            continue
+        for dep in deps:
+            if resolve(dep):
+                print(f"  {name} -> {dep}")
+            else:
+                print(f"  {name} -> {dep}   [MISSING]")
+                broken += 1
+    if broken:
+        print(f"\n{broken} broken dependency link(s)", file=sys.stderr)
+    return 1 if broken else 0
 
 
 def main() -> int:
@@ -202,7 +278,11 @@ def main() -> int:
         return cmd_list()
     if sub == "show" and rest:
         return cmd_show(rest[0])
-    print("usage: skill.py use|rate|list|show ...", file=sys.stderr)
+    if sub == "suggest" and rest:
+        return cmd_suggest(" ".join(rest))
+    if sub == "deps":
+        return cmd_deps()
+    print("usage: skill.py use|rate|list|show|suggest|deps ...", file=sys.stderr)
     return 2
 
 

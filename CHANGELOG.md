@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- **Retrieval (optional, file-based)**: new `_meta/search.py` powering `synapse search`
+  (lexical, ripgrep-aware), `synapse digest` (compact `_meta/digest.md` map), and
+  `synapse index` / `synapse query` (local TF-IDF by default; opt-in embeddings backend
+  via `SYNAPSE_RETRIEVAL_BACKEND`, degrades cleanly to TF-IDF). The vault still works with
+  no index at all — every layer is optional and degrades.
+- **`synapse setup <target>`**: one-command wiring for claude-code / codex / cursor /
+  gemini / opencode — installs the matching context file pointed at the active vault,
+  idempotently. Templates are stashed under `$SYNAPSE_HOME/templates` at install time.
+- **Stricter quality gate**: `synapse check --strict` flags distillation-quality issues
+  (over-long/empty summaries, stale `updated` dates) as errors for CI; `check` now also
+  reports the skill dependency graph.
+- **Skills system**: skills can declare `requires: [[...]]` dependencies and a `version`;
+  new `synapse skill suggest <context>` recommends a skill by relevance + reputation, and
+  `synapse skill deps` reports/validates the dependency graph.
+- **Docs**: README quickstart now leads with `synapse setup`; new worked
+  `examples/distillation/` (raw session → atomic, linked, validated notes).
 - README: "Adding content" guide — manual drop into the right folder, then let the agent
   normalize frontmatter/tags/links/index and run `synapse check`; plus agent-driven ingestion
   of an external source (URL, Git repo, document) with provenance in `sources`.

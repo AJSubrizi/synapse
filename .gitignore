@@ -6,3 +6,11 @@ tmp/
 # Local editor/agent settings — must not ship to clones
 .claude/settings.local.json
 
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Generated retrieval artifacts (rebuilt by `synapse index` / `synapse digest`)
+retrieval.json
+digest.md
+

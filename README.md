@@ -65,9 +65,14 @@ SYNAPSE_HOME="$HOME/My-Brain" BRAIN_VAULT="$HOME/My-Brain/vault" ./install.sh
 ## Quick start
 
 ```bash
-synapse codex
-synapse claude
-synapse opencode
+# 1. wire your agent to the vault (writes CLAUDE.md / AGENTS.md / GEMINI.md here)
+synapse setup claude-code        # or: codex | cursor | gemini | opencode
+
+# 2. run the agent with the vault environment loaded
+synapse claude                   # or: codex | opencode | gemini
+
+# 3. after work, the agent distills; you keep the vault healthy
+synapse check --strict
 ```
 
 With shell integration (`synapse reinit`), aliases like `codex` route through Synapse.
@@ -88,18 +93,42 @@ staleness, subagents).
 ## Commands
 
 ```bash
-synapse status       # active? vault, session, staleness
-synapse vault        # list vaults / show active
-synapse vault NAME   # switch to (or create) a named vault
-synapse check        # validate + dedup (read-only)
-synapse doctor       # boot files exist?
-synapse skill list   # ranked skills library
-synapse reinit       # rewrite shell-rc Synapse block
+synapse status         # active? vault, session, staleness
+synapse vault          # list vaults / show active
+synapse vault NAME     # switch to (or create) a named vault
+synapse setup TARGET   # install agent context file (claude-code|codex|cursor|gemini|opencode)
+synapse check          # validate + dedup + skill deps (read-only)
+synapse check --strict # also fail on distillation-quality issues (CI-friendly)
+synapse search QUERY   # filter notes by query, tag, or title (--tag/--title/--exact)
+synapse query QUERY    # ranked retrieval (lexical, or semantic via the built index)
+synapse digest         # (re)write _meta/digest.md — a compact map of the vault
+synapse index          # build optional retrieval index (--backend tfidf|embeddings)
+synapse doctor         # boot files exist?
+synapse skill list     # ranked skills library
+synapse skill suggest CONTEXT   # recommend a skill for the task
+synapse skill deps     # skill dependency graph (flags broken requires)
+synapse reinit         # rewrite shell-rc Synapse block
 synapse env
-synapse <cli>        # run agent with vault env
+synapse <cli>          # run agent with vault env
 ```
 
 `brain` remains a symlink to `synapse` for backward compatibility.
+
+### Retrieval (optional)
+
+The vault works with just the agent + `[[wikilinks]]`. As it grows, three optional,
+**file-based** layers help the agent *find* the right notes — no database, ever:
+
+- `synapse search` — fast grep-based lookup with `--tag` / `--title` / `--exact` filters.
+- `synapse query` — ranked retrieval that weights title/tags/summary over body (uses the
+  index if built, else a lexical fallback).
+- `synapse digest` — a single `_meta/digest.md` map the agent can read in Phase 0
+  instead of the whole vault.
+- `synapse index` + `synapse query` — a local TF-IDF index by default; an embeddings
+  backend is opt-in via `SYNAPSE_RETRIEVAL_BACKEND=embeddings` and degrades cleanly to
+  TF-IDF if the optional model isn't installed.
+
+See a worked distillation example in [`examples/distillation/`](examples/distillation/).
 
 ## Multiple vaults
 

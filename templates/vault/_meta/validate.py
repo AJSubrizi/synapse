@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
+import datetime as dt
 import glob
 import os
 import re
@@ -10,7 +12,12 @@ VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TAXONOMY = os.path.join(VAULT, "_meta", "taxonomy.md")
 CONTENT_DIRS = ("concepts", "references", "synthesis", "skills", "projects", "journal", "entities")
 REQUIRED = ("title", "category", "tags", "sources", "summary", "created", "updated")
-SPECIAL = {"index", "log", "hot", "AGENTS"}
+SPECIAL = {"index", "log", "hot", "AGENTS", "digest"}
+
+# Strict-mode heuristics for distillation quality (warnings only).
+SUMMARY_MAX = 240          # a summary is a one-liner, not a paragraph
+SUMMARY_MIN = 10           # too short = not a real summary
+DEFAULT_STALE_MONTHS = 9   # 'updated' older than this is flagged as possibly stale
 
 
 def load_taxonomy_tags() -> set[str]:
@@ -45,7 +52,27 @@ def strip_code(text: str) -> str:
     return text
 
 
+def parse_date(raw: str | None) -> dt.date | None:
+    if not raw:
+        return None
+    raw = raw.strip().strip("'\"")
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", raw)
+    if not m:
+        return None
+    try:
+        return dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
 def main() -> int:
+    ap = argparse.ArgumentParser(description="Vault quality gate.")
+    ap.add_argument("--strict", action="store_true",
+                    help="treat distillation-quality warnings as errors (exit 1)")
+    ap.add_argument("--stale-months", type=int, default=DEFAULT_STALE_MONTHS,
+                    help="flag notes whose 'updated' is older than N months")
+    args = ap.parse_args()
+
     files = [
         path
         for path in glob.glob(os.path.join(VAULT, "**", "*.md"), recursive=True)
@@ -95,6 +122,8 @@ def main() -> int:
 
     # Warn (don't fail) on knowledge rot: the failure modes of auto-distilled vaults.
     known_tags = load_taxonomy_tags()
+    strict_warnings: list[str] = []   # distillation-quality issues (errors under --strict)
+    today = dt.date.today()
     for rel, stem, fm in content_notes:
         if not outgoing.get(stem) and not incoming.get(stem):
             warnings.append(f"{rel}: orphan note (no links in or out) — cross-link it")
@@ -112,6 +141,29 @@ def main() -> int:
                     warnings.append(
                         f"{rel}: unknown tag '{tag}' (not in _meta/taxonomy.md)"
                     )
+
+        # --- distillation quality (atomic, well-summarised, fresh notes) ---
+        summary = (fm or {}).get("summary", "").strip().strip("'\"")
+        if summary and len(summary) > SUMMARY_MAX:
+            strict_warnings.append(
+                f"{rel}: summary is {len(summary)} chars (> {SUMMARY_MAX}) — "
+                f"keep it a one-line gist; the note body holds the detail"
+            )
+        elif summary and len(summary) < SUMMARY_MIN:
+            strict_warnings.append(f"{rel}: summary too short — write a real one-line gist")
+        updated = parse_date((fm or {}).get("updated"))
+        if updated:
+            age_days = (today - updated).days
+            if age_days > args.stale_months * 30:
+                strict_warnings.append(
+                    f"{rel}: not updated in {age_days // 30} months "
+                    f"(updated {updated}) — review for staleness"
+                )
+
+    if args.strict:
+        errors.extend(strict_warnings)
+    else:
+        warnings.extend(strict_warnings)
 
     print(f"Pages analyzed: {len(files)}")
     print(f"Errors: {len(errors)} | Warnings: {len(warnings)}")

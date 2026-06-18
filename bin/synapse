@@ -61,10 +61,14 @@ $CMD_NAME — Synapse: persistent memory bootstrap for agentic CLIs
 Usage:
   $CMD_NAME <cli> [args...]   run an agent CLI with the vault environment loaded
   $CMD_NAME vault [name]     list vaults, or switch to / create vault <name>
+  $CMD_NAME setup <target>   install agent context file (claude-code|codex|cursor|gemini|opencode)
   $CMD_NAME status           vault active? session id, staleness
-  $CMD_NAME check            read-only quality gate: validate + dedup
-  $CMD_NAME search [opts]    search vault notes by query, tag, or title
-  $CMD_NAME skill <cmd>      skill scorecards: list | use | rate | show
+  $CMD_NAME check [--strict] read-only quality gate: validate + dedup + skill deps
+  $CMD_NAME search [opts]    filter notes by query, tag, or title (grep-based lookup)
+  $CMD_NAME query <query>    ranked retrieval (lexical, or semantic via the built index)
+  $CMD_NAME digest           (re)write _meta/digest.md — a compact map of the vault
+  $CMD_NAME index [--backend tfidf|embeddings]   build optional retrieval index
+  $CMD_NAME skill <cmd>      skill scorecards: list | use | rate | show | suggest | deps
   $CMD_NAME doctor           verify boot files exist
   $CMD_NAME which <cmd>      resolve command (and if Synapse wraps it)
   $CMD_NAME reinit           idempotently (re)write the shell-rc block
@@ -165,14 +169,14 @@ EOF
 }
 
 check() {
-  local v="$BRAIN_VAULT/_meta/validate.py" d="$BRAIN_VAULT/_meta/dedup.py" rc=0
+  local v="$BRAIN_VAULT/_meta/validate.py" d="$BRAIN_VAULT/_meta/dedup.py" sk="$BRAIN_VAULT/_meta/skill.py" rc=0
   if ! command -v python3 >/dev/null 2>&1; then
     printf 'synapse: python3 not found; cannot run check\n' >&2
     return 2
   fi
   if [[ -f "$v" ]]; then
     printf '== validate ==\n'
-    python3 "$v" || rc=$?
+    python3 "$v" "$@" || rc=$?
   else
     printf 'synapse: no validate.py at %s\n' "$v" >&2
     rc=1
@@ -181,7 +185,88 @@ check() {
     printf '\n== dedup (candidates) ==\n'
     python3 "$d" || true
   fi
+  if [[ -f "$sk" ]]; then
+    printf '\n== skill deps ==\n'
+    BRAIN_SKILLS_DIR="$BRAIN_SKILLS_DIR" python3 "$sk" deps || rc=$?
+  fi
   return "$rc"
+}
+
+# Locate the bundled templates dir (repo checkout, installed copy, or override).
+resolve_templates() {
+  if [[ -n "${SYNAPSE_TEMPLATES:-}" && -d "${SYNAPSE_TEMPLATES:-}" ]]; then
+    printf '%s' "$SYNAPSE_TEMPLATES"; return
+  fi
+  if [[ -d "$SELF_DIR/../templates" ]]; then printf '%s' "$SELF_DIR/../templates"; return; fi
+  if [[ -d "$BRAIN_ROOT/templates" ]]; then printf '%s' "$BRAIN_ROOT/templates"; return; fi
+  printf ''
+}
+
+# Optional retrieval layer (file-based). Delegates to _meta/search.py.
+search_cmd() {
+  local s="$BRAIN_VAULT/_meta/search.py"
+  if [[ ! -f "$s" ]]; then
+    printf 'synapse: retrieval engine not found at %s\n' "$s" >&2
+    return 2
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'synapse: python3 not found; cannot run search\n' >&2
+    return 2
+  fi
+  exec python3 "$s" "$@"
+}
+
+# Install the right agent context file for a target tool, pointed at the vault.
+setup_cmd() {
+  local target="${1:-}" dest_dir="${2:-$PWD}" templates
+  templates="$(resolve_templates)"
+
+  if [[ -z "$target" ]]; then
+    printf 'usage: %s setup <target> [dir]\n\n' "$CMD_NAME"
+    printf 'targets: claude-code  codex  cursor  gemini  opencode\n'
+    printf 'installs the matching context file into [dir] (default: current dir),\n'
+    printf 'pointed at the active vault: %s\n' "$BRAIN_VAULT"
+    return 0
+  fi
+  if [[ -z "$templates" ]]; then
+    printf 'synapse: templates not found (set SYNAPSE_TEMPLATES to the templates dir)\n' >&2
+    return 2
+  fi
+
+  local src name
+  case "$target" in
+    claude|claude-code)     src="$templates/CLAUDE.md";  name="CLAUDE.md" ;;
+    codex|opencode|cursor)  src="$templates/AGENTS.md";  name="AGENTS.md" ;;
+    gemini)                 src="$templates/GEMINI.md";  name="GEMINI.md" ;;
+    *)
+      printf 'synapse: unknown target: %s (claude-code|codex|cursor|gemini|opencode)\n' "$target" >&2
+      return 2 ;;
+  esac
+  if [[ ! -f "$src" ]]; then
+    printf 'synapse: template missing: %s\n' "$src" >&2
+    return 2
+  fi
+
+  mkdir -p "$dest_dir"
+  local dst="$dest_dir/$name"
+  if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
+    printf 'synapse: %s already up to date (%s)\n' "$name" "$dst"
+  elif [[ -f "$dst" ]]; then
+    printf 'synapse: %s exists and differs — left unchanged: %s\n' "$name" "$dst" >&2
+    printf '         remove it (or pass a clean dir) to reinstall the template.\n' >&2
+  else
+    cp "$src" "$dst"
+    printf 'synapse: installed %s -> %s\n' "$name" "$dst"
+  fi
+
+  if [[ "$target" == claude* ]]; then
+    local hooks="$BRAIN_VAULT/_meta/hooks"
+    if [[ -d "$hooks" ]]; then
+      printf 'hooks: %s/{session-enforce.sh,stop-check.sh}\n' "$hooks"
+      printf '       wire these into Claude Code settings (SessionStart / Stop) to enforce the loop.\n'
+    fi
+  fi
+  printf 'vault: %s\n' "$BRAIN_VAULT"
 }
 
 which_cmd() {
@@ -373,7 +458,19 @@ case "${1:-}" in
     exit 0
     ;;
   check)
-    check
+    shift
+    check "$@"
+    exit $?
+    ;;
+  query|index|digest)
+    if [[ "$1" == "digest" && -z "${2:-}" ]]; then
+      search_cmd digest --write
+    else
+      search_cmd "$@"
+    fi
+    ;;
+  setup)
+    setup_cmd "${2:-}" "${3:-$PWD}"
     exit $?
     ;;
   search)
