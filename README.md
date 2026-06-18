@@ -140,6 +140,11 @@ questions across 10 conversations, the no-dependency BM25 backend reaches **Reca
 not comparable to LLM answer-accuracy figures. Full method, table, and reproduction:
 [`benchmarks/locomo/`](benchmarks/locomo/).
 
+A second dataset, [`benchmarks/longmemeval/`](benchmarks/longmemeval/), runs the same
+engine to check the retriever generalises beyond LoCoMo. Both share
+[`benchmarks/retrieval_eval.py`](benchmarks/retrieval_eval.py) so results are directly
+comparable.
+
 ## Multiple vaults
 
 Keep separate knowledge bases for separate domains and switch between them with one

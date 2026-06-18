@@ -1,0 +1,38 @@
+[
+  {
+    "question_id": "lme_fix_1",
+    "question_type": "single-session-user",
+    "question": "What city did the user move to for the new job?",
+    "answer": "Austin",
+    "question_date": "2023-08-01",
+    "haystack_session_ids": ["s0", "s1", "s2"],
+    "answer_session_ids": ["s1"],
+    "haystack_sessions": [
+      [
+        {"role": "user", "content": "I love hiking on weekends."},
+        {"role": "assistant", "content": "That sounds refreshing!"}
+      ],
+      [
+        {"role": "user", "content": "I just accepted a new job and I'm moving to Austin next month.", "has_answer": true},
+        {"role": "assistant", "content": "Congrats on the move to Austin!"}
+      ],
+      [
+        {"role": "user", "content": "Any tips for keeping houseplants alive?"},
+        {"role": "assistant", "content": "Water them on a schedule and watch the light."}
+      ]
+    ]
+  },
+  {
+    "question_id": "lme_fix_2_abs",
+    "question_type": "abstention",
+    "question": "What is the user's favorite spaceship?",
+    "answer": "n/a",
+    "question_date": "2023-08-02",
+    "haystack_session_ids": ["s0", "s1"],
+    "answer_session_ids": [],
+    "haystack_sessions": [
+      [{"role": "user", "content": "I had coffee this morning."}],
+      [{"role": "user", "content": "The weather is nice today."}]
+    ]
+  }
+]
