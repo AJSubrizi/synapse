@@ -7,11 +7,16 @@ import tempfile
 # Add the project root to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import datetime as dt
+
 from templates.vault._meta.validate import (
     parse_frontmatter,
     parse_tags,
     load_taxonomy_tags,
     strip_code,
+    parse_date,
+    git_available,
+    git_last_modified,
 )
 
 
@@ -146,9 +151,28 @@ class TestLoadTaxonomyTags:
                 os.unlink(f.name)
 
 
+class TestGitStaleness:
+    """Test git-derived staleness helpers (T4)."""
+
+    def test_parse_date_handles_git_iso(self):
+        assert_equal(parse_date("2026-01-15T10:00:00+01:00"), dt.date(2026, 1, 15))
+
+    def test_git_last_modified_untracked_returns_none(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "x.md")
+            with open(p, "w") as f:
+                f.write("hi")
+            assert_none(git_last_modified(p), "untracked file has no git date")
+
+    def test_git_available_false_outside_repo(self):
+        with tempfile.TemporaryDirectory() as d:
+            assert_equal(git_available(d), False, "temp dir is not a git work tree")
+
+
 if __name__ == "__main__":
     # Run all tests
-    test_classes = [TestParseFrontmatter, TestParseTags, TestStripCode, TestLoadTaxonomyTags]
+    test_classes = [TestParseFrontmatter, TestParseTags, TestStripCode,
+                    TestLoadTaxonomyTags, TestGitStaleness]
     for cls in test_classes:
         print(f"Running {cls.__name__} tests...")
         instance = cls()
