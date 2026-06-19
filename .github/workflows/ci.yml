@@ -14,8 +14,30 @@ jobs:
       - name: Validate vault (links + frontmatter)
         run: python3 templates/vault/_meta/validate.py
 
+      - name: Unit tests (validate, dedup, skill, retriever)
+        run: |
+          for t in tests/test_*.py; do
+            echo "== $t =="
+            python3 "$t"
+          done
+
+      - name: Retrieval benchmark smoke (fixtures, offline)
+        run: |
+          python3 benchmarks/longmemeval/run_longmemeval.py --data benchmarks/longmemeval/fixture.json
+          python3 benchmarks/locomo/run_locomo.py --data benchmarks/locomo/fixture.json
+
+      - name: Answer-track smoke (offline echo/exact, no API)
+        run: |
+          python3 benchmarks/longmemeval/run_longmemeval.py --data benchmarks/longmemeval/fixture.json \
+            --track answer --answerer echo --judge exact
+          python3 benchmarks/distillation_eval.py --data benchmarks/longmemeval/fixture.json \
+            --distiller echo --answerer echo --judge exact
+
       - name: ShellCheck shell scripts
-        run: shellcheck install.sh uninstall.sh scripts/install-agent-wrapper.sh bin/synapse templates/vault/_meta/hooks/*.sh
+        run: shellcheck install.sh uninstall.sh scripts/*.sh bin/synapse templates/vault/_meta/hooks/*.sh
+
+      - name: Demo script smoke (throwaway vault, learn -> index -> recall)
+        run: bash scripts/demo.sh
 
       - name: Smoke test install + doctor
         run: |

@@ -1,11 +1,48 @@
 # Changelog
 
-## Unreleased
+## v0.4.0 — 2026-06-19
 
-- **Retrieval (optional, file-based)**: new `_meta/search.py` powering `synapse search`
+Smarter retrieval (BM25 default + hybrid/embeddings), end-to-end answer benchmarks,
+one-line install, and git-derived staleness.
+
+- **One-line install**: `curl -fsSL .../scripts/get.sh | bash` clones (or updates) the
+  repo and runs `install.sh` — honoring the same env overrides.
+- **Reproducible demo** (`scripts/demo.sh`): runs the full learn → write → recall loop in
+  a throwaway vault (nothing touched outside a temp dir); the basis for the README GIF and
+  a CI end-to-end smoke.
+- **Git-derived staleness** (`synapse check --git-staleness`): flags stale notes from
+  git commit history (ground truth) instead of the self-reported `updated:` frontmatter,
+  falling back cleanly to the frontmatter date when the vault isn't a git work tree.
+- **Answer-accuracy track** (`run_longmemeval.py --track answer`): closes the loop the
+  README promised — retrieve top-k units, have an LLM answer from them, and grade the
+  answer with an LLM judge (default model `claude-opus-4-8`). Turns a retrieval number
+  into a memory number. Offline `--answerer echo --judge exact` exercises the plumbing
+  with no API key (and runs in CI).
+- **Distillation-quality eval** (`benchmarks/distillation_eval.py`): the honest
+  end-to-end number — distill raw sessions into notes, index them with the *shipped*
+  BM25 retriever, then retrieve→answer→judge. Measures Synapse's real artifact (distilled
+  notes), not raw chat turns.
+- **Hybrid retrieval backend** (`synapse index --backend hybrid`): fuses BM25 and
+  embeddings with reciprocal rank fusion to lift the harder query types (multi-session,
+  temporal). Opt-in; degrades to BM25 if embeddings aren't available.
+- **Chunked, incremental embeddings**: notes are embedded per overlapping chunk (each
+  carrying the title/summary as context) instead of one diluted whole-note vector, and
+  `synapse index` re-encodes only notes whose content hash changed — reusing the rest, so
+  re-indexing a large vault is cheap. Reports `reused / encoded` counts.
+- **BM25 is now the default retrieval backend** for `synapse index` / `synapse query` —
+  the strongest offline ranker (~90% nDCG@10 on LongMemEval-S, vs ~84% for TF-IDF), so
+  what ships matches the published benchmark. TF-IDF stays available via
+  `synapse index --backend tfidf`; embeddings degrade to BM25 if the model is absent.
+- **Unified `synapse search`** on the weighted, frontmatter-aware `_meta/search.py`
+  retriever (with `--tag` / `--title` / `--exact` filters), replacing the older grep-based
+  shell implementation. The benchmark harness now imports the retriever's canonical
+  tokenizer, so scores describe exactly what users run.
+- **CI** now runs the unit suite (incl. new retriever tests) and an offline retrieval
+  benchmark smoke test on the bundled fixtures, guarding against quality regressions.
+- **Retrieval (optional, file-based)**: `_meta/search.py` powers `synapse search`
   (lexical, ripgrep-aware), `synapse digest` (compact `_meta/digest.md` map), and
-  `synapse index` / `synapse query` (local TF-IDF by default; opt-in embeddings backend
-  via `SYNAPSE_RETRIEVAL_BACKEND`, degrades cleanly to TF-IDF). The vault still works with
+  `synapse index` / `synapse query` (BM25 by default; opt-in embeddings backend
+  via `SYNAPSE_RETRIEVAL_BACKEND`, degrades cleanly). The vault still works with
   no index at all — every layer is optional and degrades.
 - **`synapse setup <target>`**: one-command wiring for claude-code / codex / cursor /
   gemini / opencode — installs the matching context file pointed at the active vault,
