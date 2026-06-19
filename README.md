@@ -25,8 +25,8 @@ Gemini, OpenCode, Cursor Agent, and others). It ships a rated **skills library**
 - **Plain Markdown, no database, no lock-in** — your memory is files you own, browsable in Obsidian or any editor.
 - **Works with any agentic CLI** — Claude Code, Codex, Gemini, OpenCode, Cursor; wired up in one command (`synapse setup`).
 - **Rated skills library** — reusable procedures with scorecards, dependencies, and versioning.
-- **Optional file-based retrieval** — search, ranked query, and a TF-IDF index, all offline; **BM25 hits ~90% nDCG@10 on LongMemEval** ([benchmarks](#benchmarks)).
-- **Quality gate built in** — `synapse check --strict` keeps the vault from rotting over many distillation cycles.
+- **Optional file-based retrieval** — search, ranked query, and a local index, all offline; the default **BM25 backend hits ~90% nDCG@10 on LongMemEval** ([benchmarks](#benchmarks)), with opt-in embeddings + hybrid backends.
+- **Quality gate built in** — `synapse check --strict` (and `--git-staleness`) keeps the vault from rotting over many distillation cycles.
 
 ## Contents
 
@@ -48,10 +48,25 @@ Gemini, OpenCode, Cursor Agent, and others). It ships a rated **skills library**
 
 ## Install
 
+One line (clones to `~/.synapse-src`, then installs):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/AJSubrizi/synapse/main/scripts/get.sh | bash
+```
+
+Or clone and run the installer yourself:
+
 ```bash
 git clone https://github.com/AJSubrizi/synapse.git
 cd synapse
 ./install.sh
+```
+
+See the whole **learn → write → recall** loop in a throwaway vault (no install needed,
+nothing touched outside a temp dir) — also the basis for the demo recording:
+
+```bash
+./scripts/demo.sh
 ```
 
 Default paths:
@@ -111,10 +126,11 @@ synapse vault NAME     # switch to (or create) a named vault
 synapse setup TARGET   # install agent context file (claude-code|codex|cursor|gemini|opencode)
 synapse check          # validate + dedup + skill deps (read-only)
 synapse check --strict # also fail on distillation-quality issues (CI-friendly)
+synapse check --git-staleness  # derive staleness from git history, not frontmatter
 synapse search QUERY   # filter notes by query, tag, or title (--tag/--title/--exact)
-synapse query QUERY    # ranked retrieval (lexical, or semantic via the built index)
+synapse query QUERY    # ranked retrieval (BM25 by default, or the built index)
 synapse digest         # (re)write _meta/digest.md — a compact map of the vault
-synapse index          # build optional retrieval index (--backend tfidf|embeddings)
+synapse index          # build optional retrieval index (--backend bm25|tfidf|embeddings|hybrid)
 synapse doctor         # boot files exist?
 synapse skill list     # ranked skills library
 synapse skill suggest CONTEXT   # recommend a skill for the task
@@ -136,9 +152,13 @@ The vault works with just the agent + `[[wikilinks]]`. As it grows, three option
   index if built, else a lexical fallback).
 - `synapse digest` — a single `_meta/digest.md` map the agent can read in Phase 0
   instead of the whole vault.
-- `synapse index` + `synapse query` — a local TF-IDF index by default; an embeddings
-  backend is opt-in via `SYNAPSE_RETRIEVAL_BACKEND=embeddings` and degrades cleanly to
-  TF-IDF if the optional model isn't installed.
+- `synapse index` + `synapse query` — a local **BM25** index by default (the strongest
+  offline ranker — the same one benchmarked below at ~90% nDCG@10); TF-IDF stays
+  available via `synapse index --backend tfidf`. Opt-in **embeddings** (chunked per note,
+  incrementally re-encoded — only changed notes) and a **hybrid** backend (BM25 +
+  embeddings fused with reciprocal rank fusion) are enabled via
+  `synapse index --backend embeddings|hybrid` (or `SYNAPSE_RETRIEVAL_BACKEND`), and
+  degrade cleanly to BM25 if the model isn't installed.
 
 See a worked distillation example in [`examples/distillation/`](examples/distillation/).
 
@@ -159,6 +179,15 @@ second dataset shows the retriever generalises. These are **retrieval-only** num
 tables, and one-command reproduction live in
 [`benchmarks/`](benchmarks/) (both datasets share
 [`retrieval_eval.py`](benchmarks/retrieval_eval.py), so results are directly comparable).
+
+Two optional **end-to-end tracks** close the loop from retrieval to a graded answer (they
+need an LLM — `pip install anthropic` + `ANTHROPIC_API_KEY`, default `claude-opus-4-8`;
+both have an offline plumbing mode for CI):
+
+- **Answer accuracy** — `run_longmemeval.py --track answer`: retrieve top-k → LLM answers → LLM judge.
+- **Distillation quality** — [`distillation_eval.py`](benchmarks/distillation_eval.py): distill raw
+  sessions into notes, index them with the shipped BM25 retriever, then retrieve → answer → judge.
+  This scores Synapse's real artifact (distilled notes), not raw chat turns.
 
 ## Multiple vaults
 
