@@ -6,6 +6,7 @@ import datetime as dt
 import glob
 import os
 import re
+import subprocess
 import sys
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,12 +66,36 @@ def parse_date(raw: str | None) -> dt.date | None:
         return None
 
 
+def git_available(root: str) -> bool:
+    """True if `root` is inside a git work tree (so we can read commit history)."""
+    try:
+        r = subprocess.run(["git", "-C", root, "rev-parse", "--is-inside-work-tree"],
+                           capture_output=True, text=True)
+        return r.returncode == 0 and r.stdout.strip() == "true"
+    except Exception:
+        return False
+
+
+def git_last_modified(path: str) -> dt.date | None:
+    """Committer date of the last commit touching `path` (ground truth for staleness,
+    vs the self-reported `updated:` frontmatter). None if untracked or git is absent."""
+    try:
+        r = subprocess.run(["git", "log", "-1", "--format=%cI", "--", os.path.basename(path)],
+                           cwd=os.path.dirname(path) or ".", capture_output=True, text=True)
+        return parse_date(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
+    except Exception:
+        return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Vault quality gate.")
     ap.add_argument("--strict", action="store_true",
                     help="treat distillation-quality warnings as errors (exit 1)")
     ap.add_argument("--stale-months", type=int, default=DEFAULT_STALE_MONTHS,
                     help="flag notes whose 'updated' is older than N months")
+    ap.add_argument("--git-staleness", action="store_true",
+                    help="derive staleness from git commit history (ground truth) "
+                         "instead of the self-reported 'updated' frontmatter")
     args = ap.parse_args()
 
     files = [
@@ -124,6 +149,10 @@ def main() -> int:
     known_tags = load_taxonomy_tags()
     strict_warnings: list[str] = []   # distillation-quality issues (errors under --strict)
     today = dt.date.today()
+    use_git = args.git_staleness and git_available(VAULT)
+    if args.git_staleness and not use_git:
+        warnings.append("--git-staleness requested but vault is not a git work tree; "
+                        "falling back to frontmatter 'updated' dates")
     for rel, stem, fm in content_notes:
         if not outgoing.get(stem) and not incoming.get(stem):
             warnings.append(f"{rel}: orphan note (no links in or out) — cross-link it")
@@ -152,12 +181,17 @@ def main() -> int:
         elif summary and len(summary) < SUMMARY_MIN:
             strict_warnings.append(f"{rel}: summary too short — write a real one-line gist")
         updated = parse_date((fm or {}).get("updated"))
+        source = "updated"
+        if use_git:
+            git_date = git_last_modified(os.path.join(VAULT, rel))
+            if git_date:                         # git history wins when the file is tracked
+                updated, source = git_date, "git"
         if updated:
             age_days = (today - updated).days
             if age_days > args.stale_months * 30:
                 strict_warnings.append(
-                    f"{rel}: not updated in {age_days // 30} months "
-                    f"(updated {updated}) — review for staleness"
+                    f"{rel}: no {source} activity in {age_days // 30} months "
+                    f"({source} {updated}) — review for staleness"
                 )
 
     if args.strict:
