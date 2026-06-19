@@ -36,17 +36,23 @@ KS = (1, 3, 5, 10)
 BOOTSTRAP = 1000
 SEED = 13
 
-# --- tokenizer: identical to templates/vault/_meta/search.py (keep in sync) ----------
-STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
-    "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
-    "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
-}
+# --- tokenizer: import the canonical one from the shipped retriever so the benchmark
+# scores exactly what `synapse index/query` runs. Falls back to an inline copy if the
+# template tree isn't reachable (e.g. the harness is vendored elsewhere). -------------
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                    "..", "templates", "vault", "_meta"))
+    from search import STOPWORDS, tokenize  # type: ignore  # noqa: E402,F401
+except Exception:
+    STOPWORDS = {
+        "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
+        "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
+        "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
+    }
 
-
-def tokenize(text: str) -> list[str]:
-    words = re.findall(r"[a-z0-9]+", (text or "").lower())
-    return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
+    def tokenize(text: str) -> list[str]:
+        words = re.findall(r"[a-z0-9]+", (text or "").lower())
+        return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
 
 
 # --- retrieval backends: each returns a ranked list of unit indices ------------------
