@@ -37,6 +37,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import retrieval_eval as re_eval  # noqa: E402
+import answer_eval as ans_eval  # noqa: E402
 
 
 def _session_ids(entry, n):
@@ -93,7 +94,8 @@ def prepare(entry, granularity):
     if qid.endswith("_abs") or not gold:
         return units, []                         # abstention / no gold -> no question
     qa = [{"question": entry.get("question", ""), "evidence": gold,
-           "category": entry.get("question_type", "unknown")}]
+           "category": entry.get("question_type", "unknown"),
+           "answer": entry.get("answer", "")}]
     return units, qa
 
 
@@ -108,6 +110,14 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0,
                     help="only evaluate the first N entries (quick smoke run)")
     ap.add_argument("--results", default="")
+    # Answer-accuracy track (retrieval -> LLM answer -> judge). Optional.
+    ap.add_argument("--track", default="retrieval", choices=["retrieval", "answer"])
+    ap.add_argument("--answer-backend", default="bm25", choices=list(re_eval.BACKENDS))
+    ap.add_argument("--k", type=int, default=5, help="passages fed to the answerer")
+    ap.add_argument("--answerer", default="claude", choices=["claude", "echo"])
+    ap.add_argument("--judge", default="claude", choices=["claude", "exact"])
+    ap.add_argument("--answer-model", default=None, help="default: claude-opus-4-8")
+    ap.add_argument("--judge-model", default=None, help="default: claude-opus-4-8")
     args = ap.parse_args()
 
     if not os.path.isfile(args.data):
@@ -122,6 +132,30 @@ def main() -> int:
         entries = entries[:args.limit]
     print(f"loaded {len(entries)} question entries from {args.data}", file=sys.stderr)
     prepared = [prepare(e, args.granularity) for e in entries]
+
+    if args.track == "answer":
+        client = None
+        if args.answerer == "claude" or args.judge == "claude":
+            client = ans_eval.make_client()
+            if client is None:
+                print("answer track needs the 'anthropic' SDK + ANTHROPIC_API_KEY for "
+                      "claude answerer/judge; use --answerer echo --judge exact to run "
+                      "the offline plumbing.", file=sys.stderr)
+                return 2
+        answerer = (ans_eval.claude_answerer(client, args.answer_model or ans_eval.DEFAULT_MODEL)
+                    if args.answerer == "claude" else ans_eval.echo_answerer())
+        judge = (ans_eval.claude_judge(client, args.judge_model or ans_eval.DEFAULT_MODEL)
+                 if args.judge == "claude" else ans_eval.exact_judge())
+        rows = ans_eval.evaluate_answers(prepared, args.answer_backend, args.k,
+                                         answerer, judge, args.embed_model)
+        if rows is None:
+            return 2
+        if not rows:
+            print("no answerable questions found — check the dataset schema.", file=sys.stderr)
+            return 1
+        ans_eval.report_answers(rows, args.answer_backend, args.k, "LongMemEval",
+                                args.answerer, args.judge)
+        return 0
 
     rec, gids, cats, total_q, backends = re_eval.evaluate(
         prepared, list(args.backends), args.embed_model, args.granularity)

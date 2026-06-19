@@ -35,6 +35,38 @@ Smoke test without the real data:
 python3 run_longmemeval.py --data fixture.json
 ```
 
+## Answer-accuracy track (optional, LLM)
+
+Retrieval-only numbers don't tell you whether the retrieved context actually answers
+the question. The answer track closes the loop: retrieve top-k units → an LLM answers
+from them → a judge grades the answer. It needs `pip install anthropic` and
+`ANTHROPIC_API_KEY` (default model `claude-opus-4-8`).
+
+```bash
+# retrieve with BM25, answer + judge with Claude
+python3 run_longmemeval.py --data longmemeval_s.json --track answer
+
+# offline plumbing check — no API key (echo answerer + substring judge)
+python3 run_longmemeval.py --data fixture.json --track answer --answerer echo --judge exact
+```
+
+Flags: `--answer-backend` (default `bm25`), `--k` (passages fed to the answerer),
+`--answerer claude|echo`, `--judge claude|exact`, `--answer-model` / `--judge-model`.
+
+### Distillation-quality eval — the honest end-to-end number
+
+Synapse's real artifact is *distilled notes*, not raw turns.
+[`distillation_eval.py`](../distillation_eval.py) runs the full loop —
+**distill sessions into notes → index with the shipped `search.py` (BM25) → retrieve →
+answer → judge** — so it scores the learn→write→recall path on the artifact users
+actually store:
+
+```bash
+python3 ../distillation_eval.py --data longmemeval_s.json          # claude distiller/answerer/judge
+python3 ../distillation_eval.py --data fixture.json \
+  --distiller echo --answerer echo --judge exact                   # offline plumbing
+```
+
 ## What's measured
 
 Identical to the LoCoMo harness (shared `../retrieval_eval.py`):
