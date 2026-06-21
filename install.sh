@@ -42,16 +42,17 @@ if [ ! -d "$BRAIN_VAULT" ]; then
   cp -R "$REPO_DIR/templates/vault" "$BRAIN_VAULT"
 fi
 
+# LLM Wiki layout: immutable raw/ + core wiki categories + ingest target (sources/).
+# Optional categories (people/organizations/analysis/journal) are created on demand.
 mkdir -p \
   "$BRAIN_VAULT/_meta" \
   "$BRAIN_VAULT/_meta/hooks" \
+  "$BRAIN_VAULT/raw" \
+  "$BRAIN_VAULT/sources" \
   "$BRAIN_VAULT/concepts" \
-  "$BRAIN_VAULT/references" \
-  "$BRAIN_VAULT/synthesis" \
-  "$BRAIN_VAULT/skills" \
+  "$BRAIN_VAULT/techniques" \
   "$BRAIN_VAULT/projects" \
-  "$BRAIN_VAULT/entities" \
-  "$BRAIN_VAULT/journal"
+  "$BRAIN_VAULT/skills"
 
 copy_if_missing "$REPO_DIR/templates/vault/AGENTS.md" "$BRAIN_VAULT/AGENTS.md"
 copy_if_missing "$REPO_DIR/templates/vault/index.md" "$BRAIN_VAULT/index.md"
@@ -59,17 +60,25 @@ copy_if_missing "$REPO_DIR/templates/vault/hot.md" "$BRAIN_VAULT/hot.md"
 copy_if_missing "$REPO_DIR/templates/vault/log.md" "$BRAIN_VAULT/log.md"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/workflow.md" "$BRAIN_VAULT/_meta/workflow.md"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/taxonomy.md" "$BRAIN_VAULT/_meta/taxonomy.md"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/categories" "$BRAIN_VAULT/_meta/categories"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/vault_config.py" "$BRAIN_VAULT/_meta/vault_config.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/validate.py" "$BRAIN_VAULT/_meta/validate.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/dedup.py" "$BRAIN_VAULT/_meta/dedup.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/skill.py" "$BRAIN_VAULT/_meta/skill.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/search.py" "$BRAIN_VAULT/_meta/search.py"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/wiki.py" "$BRAIN_VAULT/_meta/wiki.py"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/metrics.py" "$BRAIN_VAULT/_meta/metrics.py"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/stop-check.sh"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/session-enforce.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh"
+copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/prompt-retrieve.sh" "$BRAIN_VAULT/_meta/hooks/prompt-retrieve.sh"
 copy_if_missing "$REPO_DIR/templates/vault/concepts/workflow.md" "$BRAIN_VAULT/concepts/workflow.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/distill-after-work.md" "$BRAIN_VAULT/skills/distill-after-work.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/file-into-vault.md" "$BRAIN_VAULT/skills/file-into-vault.md"
-chmod +x "$BRAIN_VAULT/_meta/validate.py" "$BRAIN_VAULT/_meta/dedup.py" "$BRAIN_VAULT/_meta/skill.py" "$BRAIN_VAULT/_meta/search.py"
-chmod +x "$BRAIN_VAULT/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh" 2>/dev/null || true
+[ -f "$BRAIN_VAULT/raw/README.md" ] || copy_if_missing "$REPO_DIR/templates/vault/raw/README.md" "$BRAIN_VAULT/raw/README.md"
+chmod +x "$BRAIN_VAULT/_meta/validate.py" "$BRAIN_VAULT/_meta/dedup.py" "$BRAIN_VAULT/_meta/skill.py" \
+         "$BRAIN_VAULT/_meta/search.py" "$BRAIN_VAULT/_meta/wiki.py" "$BRAIN_VAULT/_meta/metrics.py" 2>/dev/null || true
+chmod +x "$BRAIN_VAULT/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh" \
+         "$BRAIN_VAULT/_meta/hooks/prompt-retrieve.sh" 2>/dev/null || true
 
 copy_if_missing "$REPO_DIR/templates/AGENTS.md" "$HOME/AGENTS.md"
 copy_if_missing "$REPO_DIR/templates/CLAUDE.md" "$HOME/CLAUDE.md"

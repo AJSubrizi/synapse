@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Installer fixed** — `install.sh` was stale: it created the old category dirs and never
+  copied the new engine files, so topping up an existing vault left it without
+  `wiki.py` / `vault_config.py` / `metrics.py` / `categories` / `prompt-retrieve.sh`. It now
+  scaffolds the LLM-Wiki layout (`raw/ sources/ concepts/ techniques/ projects/ skills/`)
+  and copies every current engine file. Added `templates/vault/raw/README.md`.
 - **`synapse metrics`** — loop instrumentation (`_meta/metrics.py`): page count + growth,
   ingest/file activity from `log.md`, retrieval index coverage, and a blunt stall signal
   (`⚠ no distillation in N days`). Makes the wiki's compounding *measurable*, not assumed.
