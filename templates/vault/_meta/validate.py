@@ -11,7 +11,16 @@ import sys
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TAXONOMY = os.path.join(VAULT, "_meta", "taxonomy.md")
-CONTENT_DIRS = ("concepts", "references", "synthesis", "skills", "projects", "journal", "entities")
+# Categories come from the single source of truth (_meta/vault_config.py, itself
+# configurable via _meta/categories). Fall back to the defaults if imported as a package
+# member (tests) rather than run as a script.
+try:
+    from vault_config import CATEGORIES as CONTENT_DIRS
+except Exception:
+    CONTENT_DIRS = (
+        "concepts", "techniques", "projects", "skills",
+        "sources", "analysis", "people", "organizations", "journal",
+    )
 REQUIRED = ("title", "category", "tags", "sources", "summary", "created", "updated")
 SPECIAL = {"index", "log", "hot", "AGENTS", "digest"}
 
@@ -98,10 +107,11 @@ def main() -> int:
                          "instead of the self-reported 'updated' frontmatter")
     args = ap.parse_args()
 
+    # raw/ holds immutable external sources, not wiki notes — exclude like _meta/.
     files = [
         path
         for path in glob.glob(os.path.join(VAULT, "**", "*.md"), recursive=True)
-        if "/_meta/" not in path
+        if "/_meta/" not in path and "/raw/" not in path
     ]
     stems = {os.path.splitext(os.path.basename(path))[0] for path in files}
     errors: list[str] = []

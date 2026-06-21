@@ -12,6 +12,7 @@ __pycache__/
 
 # Generated retrieval artifacts (rebuilt by `synapse index` / `synapse digest`)
 retrieval.json
+retrieval.vec
 digest.md
 
 # Benchmark datasets (downloaded on demand) + generated results

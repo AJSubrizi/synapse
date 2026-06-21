@@ -25,17 +25,20 @@ rough Markdown draft or handed you an external source to ingest. It complements
 
 ## Steps
 
-1. **Get the material.** For a draft, read the file. For a source, fetch it with your own
-   tools (web fetch, `git clone`, file read) and skim for the high-signal parts.
+1. **Ingest the source.** For an external source, `synapse ingest <path-or-url>` so the
+   immutable original lands under `raw/` with provenance. For a draft, read the file.
+   Fetch/skim for the high-signal parts.
 2. **Split into atomic notes** — one idea per page. Don't dump a whole document into one note.
-3. **Pick the folder**: `skills/`, `concepts/`, `references/`, `projects/`, `entities/`, or
-   `synthesis/`. (Use `journal/` only for raw, dated capture.)
+3. **Pick the folder** (see `_meta/categories`): core `concepts/`, `techniques/` (described
+   pattern/how-to), `projects/`, `skills/` (executed + rated procedure); or optional
+   `sources/` (summary of an ingested source), `analysis/`, `people/`, `organizations/`.
+   (Use `journal/` only for raw, dated capture.)
 4. **Add frontmatter**: `title`, `category`, `tags` (1-5, from `_meta/taxonomy.md`), `sources`
-   (the URL / repo / path it came from — provenance is mandatory for ingested material),
+   (the `raw/` file / URL / path it came from — provenance is mandatory for ingested material),
    `summary`, `created`, `updated`.
 5. **Cross-link** with at least one `[[wikilink]]` to a related note.
 6. **Register** the note under the right heading in `index.md`.
-7. **Run `synapse check`** (validate + dedup); if dedup flags a near-duplicate, merge instead
+7. **Run `synapse lint`** (validate + dedup); if dedup flags a near-duplicate, merge instead
    of adding a second copy.
 
 ## Scorecard

@@ -22,7 +22,10 @@ from difflib import SequenceMatcher
 from itertools import combinations
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONTENT_DIRS = ("concepts", "references", "synthesis", "skills", "projects", "journal", "entities")
+try:  # single source of truth (_meta/vault_config.py), with a test-time fallback
+    from vault_config import CATEGORIES as CONTENT_DIRS
+except Exception:
+    CONTENT_DIRS = ("concepts", "techniques", "projects", "skills", "sources", "analysis", "people", "organizations", "journal")
 STOPWORDS = {
     "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
     "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",

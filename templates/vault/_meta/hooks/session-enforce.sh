@@ -12,10 +12,11 @@ Workflow: ${vault}/_meta/workflow.md
 
 Before planning, coding, or deciding:
 1. Phase 0 (default) or Phase 0-short for trivial tasks.
-2. hot.md + index.md (if index >80 entries, synthesis hub + grep only).
+2. hot.md + index.md (if index >80 entries, analysis hub + grep only).
 3. Run Phase 0 before any skill from the skills catalog.
 4. Subagents: pass vault path, relevant pages, meaningful-work rule.
-5. Distill only for meaningful work; if vault/ changed, run synapse check before close."
+5. Ingest external sources (synapse ingest) so raw/ keeps the immutable original.
+6. Distill only for meaningful work; if vault/ changed, run synapse lint before close."
 
 jq -n --arg e "$event" --arg c "$ctx" \
   '{hookSpecificOutput:{hookEventName:$e, additionalContext:$c}}'

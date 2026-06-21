@@ -58,17 +58,27 @@ usage() {
   cat <<EOF
 $CMD_NAME — Synapse: persistent memory bootstrap for agentic CLIs
 
+Synapse is an LLM Wiki (Karpathy's pattern): immutable raw/ sources, an LLM-owned
+wiki of interlinked Markdown, and a schema (AGENTS.md) the agent follows to maintain it.
+
 Usage:
   $CMD_NAME <cli> [args...]   run an agent CLI with the vault environment loaded
   $CMD_NAME vault [name]     list vaults, or switch to / create vault <name>
   $CMD_NAME setup <target>   install agent context file (claude-code|codex|cursor|gemini|opencode)
+  $CMD_NAME hooks [install]  wire the continuous-loop hooks into ~/.claude/settings.json ('print' to preview)
   $CMD_NAME status           vault active? session id, staleness
-  $CMD_NAME check [--strict] read-only quality gate: validate + dedup + skill deps
-  $CMD_NAME search [opts]    filter notes by query, tag, or title (grep-based lookup)
+
+  Wiki operations (Karpathy: ingest -> query -> lint):
+  $CMD_NAME ingest <src>     record a source under raw/, create a linked sources/ page, log it
   $CMD_NAME query <query>    ranked retrieval (lexical, or semantic via the built index)
+  $CMD_NAME file <cat> <ttl> file knowledge back as a wiki page (index + log) — compounds query
+  $CMD_NAME lint [--strict]  health-check the wiki: validate + dedup + skill deps (= check)
+
+  $CMD_NAME search [opts]    filter notes by query, tag, or title (grep-based lookup)
   $CMD_NAME digest           (re)write _meta/digest.md — a compact map of the vault
   $CMD_NAME index [--backend bm25|tfidf|embeddings|hybrid]   build optional retrieval index (default: bm25)
   $CMD_NAME skill <cmd>      skill scorecards: list | use | rate | show | suggest | deps
+  $CMD_NAME check [--strict] alias for lint
   $CMD_NAME doctor           verify boot files exist
   $CMD_NAME which <cmd>      resolve command (and if Synapse wraps it)
   $CMD_NAME reinit           idempotently (re)write the shell-rc block
@@ -216,6 +226,175 @@ search_cmd() {
   exec python3 "$s" "$@"
 }
 
+# Ingest: register an immutable source under raw/ with provenance, then hand the
+# agent the ingest recipe (read -> summary page -> revise wiki -> index -> log).
+# This is Karpathy's first operation: raw in, derived wiki out — never edit raw.
+ingest_cmd() {
+  local src="${1:-}" title="${2:-}" raw_dir="$BRAIN_VAULT/raw" stamp slug dest raw_rel
+  if [[ -z "$src" ]]; then
+    printf 'usage: %s ingest <path-or-url> [title]\n\n' "$CMD_NAME"
+    printf 'Records a source under raw/ (immutable), creates a linked sources/ page\n'
+    printf '(frontmatter + index.md entry + log.md entry), then prints the ingest recipe.\n'
+    printf 'URLs are recorded as a stub note pointing at the source.\n'
+    return 2
+  fi
+  mkdir -p "$raw_dir"
+  stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  if [[ "$src" =~ ^https?:// ]]; then
+    slug="$(printf '%s' "${title:-$src}" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-' | cut -c1-60)"
+    [[ -n "$slug" ]] || slug="source-$(date -u +%s)"
+    dest="$raw_dir/$slug.md"
+    [[ -n "$title" ]] || title="$src"
+    if [[ -e "$dest" ]]; then
+      printf 'synapse: raw source already exists: %s (not overwriting)\n' "$dest" >&2
+    else
+      printf -- '---\nsource: %s\ningested: %s\nimmutable: true\n---\n\n# %s\n\nFetched from <%s>. Paste or attach the captured content below; do not edit after ingest.\n' \
+        "$src" "$stamp" "$title" "$src" > "$dest"
+      printf 'synapse: recorded source stub -> %s\n' "$dest"
+    fi
+    raw_rel="raw/$slug.md"
+  elif [[ -f "$src" ]]; then
+    dest="$raw_dir/$(basename "$src")"
+    [[ -n "$title" ]] || title="$(basename "${src%.*}")"
+    if [[ -e "$dest" ]]; then
+      printf 'synapse: raw source already exists: %s (not overwriting)\n' "$dest" >&2
+    else
+      cp "$src" "$dest"
+      printf 'synapse: copied source -> %s (immutable)\n' "$dest"
+    fi
+    raw_rel="raw/$(basename "$src")"
+  else
+    printf 'synapse: not a file or URL: %s\n' "$src" >&2
+    return 2
+  fi
+
+  # Create the derived sources/ page (frontmatter + index + log) deterministically,
+  # so the agent only has to fill the body — ingest is a real wiki mutation, not a memo.
+  local w="$BRAIN_VAULT/_meta/wiki.py" page=""
+  if [[ -f "$w" ]] && command -v python3 >/dev/null 2>&1; then
+    page="$(python3 "$w" new --category sources --title "$title" \
+              --source "$raw_rel" --op INGEST 2>&1)" || true
+    if [[ -f "$BRAIN_VAULT/$page" ]]; then
+      printf 'synapse: created %s (cites %s; cataloged in index.md, logged)\n' "$page" "$raw_rel"
+    else
+      printf 'synapse: %s\n' "$page" >&2
+    fi
+  fi
+
+  cat <<EOF
+
+ingest recipe (see _meta/workflow.md → Ingest):
+  1. Read $raw_rel (immutable source).
+  2. Fill the Takeaways in ${page:-the sources/ page} — the high-signal distillation.
+  3. Revise affected wiki pages (concepts/, techniques/, projects/, analysis/, ...)
+     and cross-link them with [[wikilinks]].
+  4. synapse lint  (health-check the result — 0 errors).
+EOF
+}
+
+# File a piece of knowledge back as a wiki page (frontmatter + index + log). The
+# compounding half of query: a good answer becomes a durable page, not a one-off reply.
+file_cmd() {
+  local w="$BRAIN_VAULT/_meta/wiki.py"
+  if [[ "${1:-}" == "" || "${2:-}" == "" ]]; then
+    printf 'usage: %s file <category> <title> [--summary S] [--tags a,b] [--source SRC] [--link PAGE]\n' "$CMD_NAME"
+    printf 'categories: concepts people organizations techniques sources analysis skills projects journal\n'
+    return 2
+  fi
+  if [[ ! -f "$w" ]]; then
+    printf 'synapse: wiki engine not found at %s\n' "$w" >&2
+    return 2
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'synapse: python3 not found; cannot file a page\n' >&2
+    return 2
+  fi
+  local category="$1" title="$2"; shift 2
+  local page
+  page="$(python3 "$w" new --category "$category" --title "$title" --op FILE "$@")" || return $?
+  if [[ -f "$BRAIN_VAULT/$page" ]]; then
+    printf 'synapse: filed %s (cataloged in index.md, logged)\n' "$page"
+  else
+    printf '%s\n' "$page"
+  fi
+}
+
+# Wire the continuous-loop hooks into Claude Code settings (SessionStart / UserPromptSubmit
+# / Stop), pointed at the active vault. Safe JSON merge: idempotent, backs up, replaces
+# only Synapse-owned entries (those under _meta/hooks/). `print` emits the snippet instead.
+hooks_cmd() {
+  local action="${1:-install}" settings="${2:-$HOME/.claude/settings.json}"
+  local hooks_dir="$BRAIN_VAULT/_meta/hooks"
+  if [[ ! -d "$hooks_dir" ]]; then
+    printf 'synapse: hooks not found at %s (is the vault initialized?)\n' "$hooks_dir" >&2
+    return 2
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'synapse: python3 not found; cannot manage hooks\n' >&2
+    return 2
+  fi
+  HOOKS_DIR="$hooks_dir" SETTINGS="$settings" ACTION="$action" python3 - <<'PY'
+import json, os, shutil, sys
+
+hooks_dir = os.environ["HOOKS_DIR"]
+settings  = os.environ["SETTINGS"]
+action    = os.environ["ACTION"]
+
+mapping = {
+    "SessionStart":     os.path.join(hooks_dir, "session-enforce.sh"),
+    "UserPromptSubmit": os.path.join(hooks_dir, "prompt-retrieve.sh"),
+    "Stop":             os.path.join(hooks_dir, "stop-check.sh"),
+}
+
+def entry(cmd):
+    return {"hooks": [{"type": "command", "command": cmd}]}
+
+if action == "print":
+    print(json.dumps({"hooks": {e: [entry(c)] for e, c in mapping.items()}}, indent=2))
+    sys.exit(0)
+
+if action != "install":
+    print(f"synapse: unknown hooks action '{action}' (install|print)", file=sys.stderr)
+    sys.exit(2)
+
+data = {}
+if os.path.isfile(settings):
+    try:
+        data = json.load(open(settings, encoding="utf-8"))
+    except Exception as exc:
+        print(f"synapse: cannot parse {settings}: {exc}", file=sys.stderr)
+        sys.exit(2)
+    shutil.copy(settings, settings + ".bak")
+
+hooks = data.setdefault("hooks", {})
+for event, cmd in mapping.items():
+    groups = hooks.setdefault(event, [])
+    # drop any prior Synapse-owned command (same script basename under _meta/hooks)
+    base = os.path.basename(cmd)
+    kept = []
+    for g in groups:
+        inner = [h for h in g.get("hooks", [])
+                 if not (h.get("command", "").endswith(base) and "_meta/hooks" in h.get("command", ""))]
+        if inner:
+            g["hooks"] = inner
+            kept.append(g)
+        elif not g.get("hooks"):
+            kept.append(g)  # preserve unrelated empty/other-keyed groups
+    kept = [g for g in kept if g.get("hooks")]
+    kept.append(entry(cmd))
+    hooks[event] = kept
+
+os.makedirs(os.path.dirname(settings) or ".", exist_ok=True)
+with open(settings, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+print(f"synapse: wired SessionStart / UserPromptSubmit / Stop hooks into {settings}")
+print(f"         (backup at {settings}.bak)" if os.path.isfile(settings + ".bak") else "")
+print("         restart Claude Code (or open a new session) to load them.")
+PY
+}
+
 # Install the right agent context file for a target tool, pointed at the vault.
 setup_cmd() {
   local target="${1:-}" dest_dir="${2:-$PWD}" templates
@@ -262,8 +441,9 @@ setup_cmd() {
   if [[ "$target" == claude* ]]; then
     local hooks="$BRAIN_VAULT/_meta/hooks"
     if [[ -d "$hooks" ]]; then
-      printf 'hooks: %s/{session-enforce.sh,stop-check.sh}\n' "$hooks"
-      printf '       wire these into Claude Code settings (SessionStart / Stop) to enforce the loop.\n'
+      printf 'hooks: %s/{session-enforce.sh,prompt-retrieve.sh,stop-check.sh}\n' "$hooks"
+      printf '       run "%s hooks install" to wire the continuous loop (per-turn retrieval\n' "$CMD_NAME"
+      printf '       + distill-on-close) into ~/.claude/settings.json. See README.\n'
     fi
   fi
   printf 'vault: %s\n' "$BRAIN_VAULT"
@@ -295,16 +475,22 @@ scaffold_vault() {
   if [[ -d "$BRAIN_VAULT/_meta" ]]; then seed="$BRAIN_VAULT"
   elif [[ -d "$BRAIN_ROOT/vault/_meta" ]]; then seed="$BRAIN_ROOT/vault"; fi
 
+  # Karpathy LLM Wiki layout: immutable raw/ sources + the LLM-owned wiki. Scaffold the
+  # core categories a coding vault uses constantly (concepts/techniques/projects/skills)
+  # plus sources/ (ingest target); optional ones (people/organizations/analysis/journal,
+  # see _meta/categories) are created on demand when first filed into.
   mkdir -p \
-    "$target/_meta/hooks" "$target/concepts" "$target/references" \
-    "$target/synthesis" "$target/skills" "$target/projects" \
-    "$target/entities" "$target/journal"
+    "$target/_meta/hooks" "$target/raw" "$target/sources" \
+    "$target/concepts" "$target/techniques" "$target/projects" "$target/skills"
 
   if [[ -n "$seed" ]]; then
     cp -R "$seed/_meta/." "$target/_meta/" 2>/dev/null || true
     [[ -f "$seed/AGENTS.md" ]] && cp "$seed/AGENTS.md" "$target/AGENTS.md"
   fi
-  [[ -f "$target/index.md" ]]  || printf '# Index\n\n_Empty vault. Add notes under concepts/, references/, skills/, projects/._\n' > "$target/index.md"
+  # shellcheck disable=SC2016  # backticks are literal Markdown, not a command substitution
+  [[ -f "$target/raw/README.md" ]] || printf '# raw/ — immutable sources\n\nDrop original sources here (or let `synapse ingest` copy them in). The wiki is\nderived from these; never edit raw files in place — supersede them with a new source.\n' > "$target/raw/README.md"
+  # shellcheck disable=SC2016  # backticks are literal Markdown, not a command substitution
+  [[ -f "$target/index.md" ]]  || printf '# Index\n\n_Empty vault. Ingest a source (`synapse ingest <path>`), then distill it into concepts/, techniques/, projects/, skills/ (see `_meta/categories` for the full, configurable set)._\n' > "$target/index.md"
   [[ -f "$target/hot.md" ]]    || printf '# Hot\n\n_Most-used notes surface here._\n' > "$target/hot.md"
   [[ -f "$target/log.md" ]]    || printf '# Log\n' > "$target/log.md"
   # shellcheck disable=SC2016  # backticks are literal Markdown, not a command substitution
@@ -380,9 +566,22 @@ case "${1:-}" in
     status
     exit 0
     ;;
-  check)
+  check|lint)
     shift
     check "$@"
+    exit $?
+    ;;
+  ingest)
+    ingest_cmd "${2:-}" "${3:-}"
+    exit $?
+    ;;
+  file)
+    shift
+    file_cmd "$@"
+    exit $?
+    ;;
+  hooks)
+    hooks_cmd "${2:-install}" "${3:-$HOME/.claude/settings.json}"
     exit $?
     ;;
   query|index|digest)

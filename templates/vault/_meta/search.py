@@ -43,7 +43,10 @@ from collections import Counter, defaultdict
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 META = os.path.join(VAULT, "_meta")
-CONTENT_DIRS = ("concepts", "references", "synthesis", "skills", "projects", "journal", "entities")
+try:  # single source of truth (_meta/vault_config.py), with a test-time fallback
+    from vault_config import CATEGORIES as CONTENT_DIRS
+except Exception:
+    CONTENT_DIRS = ("concepts", "techniques", "projects", "skills", "sources", "analysis", "people", "organizations", "journal")
 DIGEST = os.path.join(META, "digest.md")
 INDEX = os.path.join(META, "retrieval.json")
 STOPWORDS = {
@@ -296,10 +299,37 @@ def chunk_note(fm: dict, body: str, stem: str,
     return chunks or [header]
 
 
+def _vec_path() -> str:
+    """Sidecar binary file holding the embedding vectors (flat float32), next to INDEX."""
+    return os.path.splitext(INDEX)[0] + ".vec"
+
+
+def _read_vectors(sub: dict):
+    """Load an embeddings sub-index's vectors as a numpy (total_chunks, dim) matrix,
+    or None if numpy/the file is unavailable. Kept lazy so the default bm25/tfidf path
+    never imports numpy."""
+    try:
+        import numpy as np  # type: ignore
+    except Exception:
+        return None
+    name = sub.get("vectors")
+    if not name:
+        return None
+    path = os.path.join(os.path.dirname(INDEX), name)
+    if not os.path.isfile(path):
+        return None
+    dim = int(sub.get("dim") or 0)
+    arr = np.fromfile(path, dtype="float32")
+    if dim <= 0 or arr.size == 0:
+        return arr.reshape(0, 0)
+    return arr.reshape(-1, dim)
+
+
 def _prev_embeddings_map(model_name: str) -> dict:
-    """Map rel -> previously embedded doc (with hash + chunks) from the existing
-    index, so unchanged notes can be reused instead of re-encoded. Works whether the
-    prior index was 'embeddings' or 'hybrid'; empty if model changed or none exists."""
+    """Map rel -> {'hash', 'chunks': ndarray|None} from the existing index so unchanged
+    notes can be reused instead of re-encoded. Reads the binary sidecar (new format) or
+    inline chunks (old format). Works for 'embeddings' and 'hybrid'; empty if the model
+    changed or none exists."""
     if not os.path.isfile(INDEX):
         return {}
     try:
@@ -314,36 +344,70 @@ def _prev_embeddings_map(model_name: str) -> dict:
         return {}
     if sub.get("model") != model_name:
         return {}
-    return {d["rel"]: d for d in sub.get("docs", [])}
+    docs = sub.get("docs", [])
+    out: dict = {}
+    if sub.get("vectors"):                       # new binary format
+        mat = _read_vectors(sub)
+        off = 0
+        for d in docs:
+            k = int(d.get("n_chunks", 0))
+            out[d["rel"]] = {"hash": d.get("hash"),
+                             "chunks": (mat[off:off + k] if mat is not None else None)}
+            off += k
+    else:                                        # old inline-JSON format
+        try:
+            import numpy as np  # type: ignore
+        except Exception:
+            np = None
+        for d in docs:
+            ch = d.get("chunks")
+            out[d["rel"]] = {"hash": d.get("hash"),
+                             "chunks": (np.asarray(ch, dtype="float32") if (np is not None and ch) else None)}
+    return out
 
 
 def build_embeddings_index() -> dict | None:
-    """Opt-in embeddings backend, chunked + incremental. Returns None (clean degrade)
-    if 'sentence-transformers'/the model isn't installed — caller falls back to bm25."""
+    """Opt-in embeddings backend: chunked, incremental, and stored as a compact binary
+    sidecar (retrieval.vec) so queries don't re-parse megabytes of JSON floats. Returns
+    None (clean degrade) if 'sentence-transformers'/the model isn't installed."""
     model_name = os.environ.get("SYNAPSE_EMBED_MODEL", "all-MiniLM-L6-v2")
     model = _load_st_model(model_name)
     if model is None:
         print("search: embeddings backend requested but 'sentence-transformers'/the model "
               "is not available; falling back to the local bm25 backend.", file=sys.stderr)
         return None
+    import numpy as np  # ships with sentence-transformers
     prev = _prev_embeddings_map(model_name)
-    index = {"backend": "embeddings", "model": model_name, "docs": []}
+    docs_meta: list = []
+    blocks: list = []                            # one (k, dim) float32 array per note
     reused = encoded = 0
     for path, rel in iter_notes():
         raw = open(path, encoding="utf-8").read()
         h = note_hash(raw)
         cached = prev.get(rel)
-        if cached and cached.get("hash") == h and cached.get("chunks"):
-            index["docs"].append({"rel": rel, "hash": h, "chunks": cached["chunks"]})
+        if cached and cached.get("hash") == h and cached.get("chunks") is not None \
+                and len(cached["chunks"]):
+            vecs = np.asarray(cached["chunks"], dtype="float32")
             reused += 1
-            continue
-        fm, body = split_frontmatter(raw)
-        stem = os.path.splitext(os.path.basename(path))[0]
-        embs = model.encode(chunk_note(fm, body, stem), normalize_embeddings=True)
-        index["docs"].append({"rel": rel, "hash": h, "chunks": [e.tolist() for e in embs]})
-        encoded += 1
-    index["_stats"] = {"reused": reused, "encoded": encoded}
-    return index
+        else:
+            fm, body = split_frontmatter(raw)
+            stem = os.path.splitext(os.path.basename(path))[0]
+            vecs = np.asarray(model.encode(chunk_note(fm, body, stem),
+                                           normalize_embeddings=True), dtype="float32")
+            if vecs.ndim == 1:
+                vecs = vecs.reshape(1, -1)
+            encoded += 1
+        docs_meta.append({"rel": rel, "hash": h, "n_chunks": int(vecs.shape[0])})
+        blocks.append(vecs)
+    if blocks:
+        mat = np.concatenate(blocks, axis=0).astype("float32")
+        dim = int(mat.shape[1])
+    else:
+        mat, dim = np.zeros((0, 0), dtype="float32"), 0
+    mat.tofile(_vec_path())
+    return {"backend": "embeddings", "model": model_name, "dim": dim,
+            "vectors": os.path.basename(_vec_path()), "docs": docs_meta,
+            "_stats": {"reused": reused, "encoded": encoded}}
 
 
 def build_hybrid_index() -> dict | None:
@@ -418,13 +482,35 @@ def _tfidf_scored(index: dict, query: str) -> list[tuple[float, str]]:
 
 
 def _embeddings_scored(index: dict, query: str) -> list[tuple[float, str]] | None:
-    """Score notes by their best-matching chunk. None if the model is unavailable."""
+    """Score notes by their best-matching chunk. None if the model is unavailable.
+
+    Fast path: one vectorized matrix-vector product over the binary sidecar (no JSON
+    floats re-parsed). Falls back to the old inline-JSON format for legacy indexes."""
     model = _load_st_model(index.get("model", "all-MiniLM-L6-v2"))
     if model is None:
         return None
     q = model.encode(query, normalize_embeddings=True)
+    if index.get("vectors"):                     # binary sidecar (current format)
+        try:
+            import numpy as np  # type: ignore
+            mat = _read_vectors(index)
+            if mat is None or mat.size == 0:
+                return []
+            sims = mat @ np.asarray(q, dtype="float32").reshape(-1)
+            scored, off = [], 0
+            for d in index["docs"]:
+                k = int(d.get("n_chunks", 0))
+                if k:
+                    best = float(sims[off:off + k].max())
+                    if best > 0:
+                        scored.append((best, d["rel"]))
+                off += k
+            scored.sort(key=lambda r: (-r[0], r[1]))
+            return scored
+        except Exception:
+            pass                                 # fall through to the inline path
     scored = []
-    for d in index["docs"]:
+    for d in index["docs"]:                      # legacy inline-JSON format
         chunks = d.get("chunks")
         if chunks is None and "emb" in d:        # backward-compat: single-vector notes
             chunks = [d["emb"]]
