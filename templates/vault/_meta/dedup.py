@@ -22,7 +22,7 @@ from difflib import SequenceMatcher
 from itertools import combinations
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONTENT_DIRS = ("concepts", "references", "synthesis", "skills", "projects", "journal", "entities")
+CONTENT_DIRS = ("concepts", "people", "organizations", "techniques", "sources", "analysis", "skills", "projects", "journal")
 STOPWORDS = {
     "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
     "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",

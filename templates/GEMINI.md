@@ -2,5 +2,9 @@
 
 Read and follow `~/AGENTS.md`.
 
-Before any project action, load the vault per `$BRAIN_VAULT/_meta/workflow.md`.
-After meaningful work, distill into the vault. Run `synapse check` if vault files changed.
+The vault is an **LLM Wiki** (Karpathy's pattern): immutable `raw/` sources → wiki → schema.
+Operations: ingest → query → lint.
+
+Before any project action, query the vault per `$BRAIN_VAULT/_meta/workflow.md`. After
+meaningful work, ingest sources (`synapse ingest`) and distill into the wiki. Run
+`synapse lint` if vault files changed.

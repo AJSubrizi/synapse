@@ -11,7 +11,11 @@ import sys
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TAXONOMY = os.path.join(VAULT, "_meta", "taxonomy.md")
-CONTENT_DIRS = ("concepts", "references", "synthesis", "skills", "projects", "journal", "entities")
+# Karpathy LLM Wiki categories (core) + Synapse extensions (skills/projects/journal).
+CONTENT_DIRS = (
+    "concepts", "people", "organizations", "techniques", "sources", "analysis",
+    "skills", "projects", "journal",
+)
 REQUIRED = ("title", "category", "tags", "sources", "summary", "created", "updated")
 SPECIAL = {"index", "log", "hot", "AGENTS", "digest"}
 
@@ -98,10 +102,11 @@ def main() -> int:
                          "instead of the self-reported 'updated' frontmatter")
     args = ap.parse_args()
 
+    # raw/ holds immutable external sources, not wiki notes — exclude like _meta/.
     files = [
         path
         for path in glob.glob(os.path.join(VAULT, "**", "*.md"), recursive=True)
-        if "/_meta/" not in path
+        if "/_meta/" not in path and "/raw/" not in path
     ]
     stems = {os.path.splitext(os.path.basename(path))[0] for path in files}
     errors: list[str] = []

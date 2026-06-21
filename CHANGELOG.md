@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased
+
+- **Aligned to Karpathy's LLM Wiki** — Synapse now adopts the
+  [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
+  as its baseline: three layers (immutable `raw/` sources → an LLM-owned wiki → the
+  `AGENTS.md` schema) and three operations (**ingest → query → lint**).
+  - New `raw/` layer + **`synapse ingest <file|url>`**: copies the source into `raw/`
+    (immutable, with provenance) **and** deterministically creates the derived `sources/`
+    page — full frontmatter, an `index.md` catalog entry, and a `log.md` line — so ingest
+    is a real wiki mutation; the agent only fills the distilled body. (Engine: `_meta/wiki.py`.)
+  - New **`synapse file <category> <title>`**: files knowledge back as a wiki page
+    (frontmatter + index + log) — the compounding half of `query`, now a command not a memo.
+  - New **`synapse lint`** (alias of `check`).
+  - New **`synapse hooks install`**: safe, idempotent JSON merge that wires the
+    continuous-loop hooks (SessionStart / UserPromptSubmit / Stop) into
+    `~/.claude/settings.json` — backs up to `.bak`, preserves your other settings/hooks.
+    Turns Phase-0's one-shot read into per-turn retrieval (fixes read-once drift).
+  - Wiki categories realigned to Karpathy's: `concepts/`, `people/`, `organizations/`,
+    `techniques/`, `sources/`, `analysis/`. Synapse extensions (`skills/` rated, `projects/`,
+    `journal/`) are kept on top. (Replaces the previous `references/`, `synthesis/`, `entities/`.)
+  - Schema/workflow/docs (`AGENTS.md`, `_meta/workflow.md`, README, ARCHITECTURE, bootstrap
+    templates) rewritten around the three layers and operations.
+- **Continuous integration loop (Claude Code hooks)** — turn Phase 0's one-shot vault read
+  into an ongoing loop:
+  - `prompt-retrieve.sh` (**UserPromptSubmit**): ranks the vault against every prompt and
+    injects the top matching notes (instant lexical ranking, no model) so memory resurfaces
+    each turn instead of only at session start.
+  - `stop-check.sh` (**Stop**, rewritten): if notes changed, runs `synapse check` and blocks
+    the stop on errors; if project files changed but no notes were written, gives a one-shot
+    distill reminder. Guarded against loops; silence the nudge with `SYNAPSE_DISTILL_NUDGE=0`.
+- **Faster, smaller embeddings index** — vectors are now stored in a compact binary sidecar
+  (`_meta/retrieval.vec`, float32) and queried with a single vectorized matrix-vector product
+  instead of re-parsing JSON floats and doing cosine in Python: ~140× faster per query and
+  ~5× smaller on disk at a few thousand chunks. Backward-compatible with old inline indexes.
+
 ## v0.4.0 — 2026-06-19
 
 Smarter retrieval (BM25 default + hybrid/embeddings), end-to-end answer benchmarks,
