@@ -5,13 +5,20 @@
 [![Obsidian compatible](https://img.shields.io/badge/Obsidian-compatible-7c3aed.svg)](https://obsidian.md)
 
 > A shell-native, drop-in implementation of [Andrej Karpathy's **LLM Wiki**](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):
-> immutable sources in, an LLM-owned wiki of interlinked Markdown out. Your AI coding agent
+> immutable sources in, an LLM-owned wiki of interlinked Markdown out. Your agent
 > **queries the wiki before work** and **ingests what it learns after** — persistent memory
 > that compounds across sessions. Plain files you own. No database, no RAG, no lock-in.
 
+> **Model- and tool-agnostic.** The wiki is plain Markdown + a `synapse` shell CLI, so it
+> works with **any LLM and any agentic CLI** — Claude Code, Codex, Gemini, OpenCode, Cursor,
+> and anything that can read a file or run a command. One `setup` wires the right context
+> file for each; nothing about the vault is tied to a vendor.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AJSubrizi/synapse/main/scripts/get.sh | bash
-synapse setup claude-code && synapse hooks install   # wire your agent + the continuous loop
+
+synapse setup claude-code     # or: codex | gemini | opencode | cursor
+synapse hooks install         # Claude Code: wire the per-turn continuous loop (optional)
 ```
 
 That's it — your agent now reads and grows a knowledge base on every session.
@@ -60,19 +67,28 @@ RAG re-derives from raw chunks on every query and never retains anything — per
 amnesiac. The LLM Wiki **compiles knowledge once** into interlinked notes and keeps them
 current. It's plain Markdown: diffable, browsable in Obsidian, owned by you.
 
-## The continuous loop (Claude Code hooks)
+## The continuous loop
 
-A vault read once at session start drifts out of context. One command wires three hooks so
-memory stays live — a safe, idempotent merge into `~/.claude/settings.json` (backs up to
-`.bak`, preserves your other settings):
+A vault read once at session start drifts out of context. Every CLI keeps the loop alive —
+the mechanism just differs by how much the tool exposes:
 
-```bash
-synapse hooks install     # SessionStart + UserPromptSubmit + Stop   (synapse hooks print to preview)
-```
+- **Any CLI** — `synapse setup <target>` writes the agent's context file (`CLAUDE.md` /
+  `AGENTS.md` / `GEMINI.md`) pointing at the vault, so the agent runs Phase 0 (query before
+  work) and distills after. This alone is portable across every tool and model.
+- **Claude Code (deepest integration)** — `synapse hooks install` adds per-turn automation
+  via a safe, idempotent merge into `~/.claude/settings.json` (backs up to `.bak`, preserves
+  your other settings):
 
-- **SessionStart** — inject the vault bootstrap context.
-- **UserPromptSubmit** — rank the wiki against *every* prompt and inject the top notes (instant, no model) so memory resurfaces each turn.
-- **Stop** — if notes changed, run `synapse lint` and block on errors; if you changed code but wrote no notes, nudge to distill. (Silence with `SYNAPSE_DISTILL_NUDGE=0`.)
+  ```bash
+  synapse hooks install     # SessionStart + UserPromptSubmit + Stop   (synapse hooks print to preview)
+  ```
+
+  - **SessionStart** — inject the vault bootstrap context.
+  - **UserPromptSubmit** — rank the wiki against *every* prompt and inject the top notes (instant, no model) so memory resurfaces each turn.
+  - **Stop** — if notes changed, run `synapse lint` and block on errors; if you changed code but wrote no notes, nudge to distill. (Silence with `SYNAPSE_DISTILL_NUDGE=0`.)
+
+Codex, Gemini, OpenCode and Cursor get the same `ingest`/`query`/`file`/`lint` commands and
+the Phase-0 loop today; equivalent per-turn hooks land as each CLI exposes them.
 
 ## Commands
 
