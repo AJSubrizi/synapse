@@ -29,9 +29,10 @@ rough Markdown draft or handed you an external source to ingest. It complements
    immutable original lands under `raw/` with provenance. For a draft, read the file.
    Fetch/skim for the high-signal parts.
 2. **Split into atomic notes** — one idea per page. Don't dump a whole document into one note.
-3. **Pick the folder** (Karpathy wiki categories): `concepts/`, `people/`, `organizations/`,
-   `techniques/`, `sources/` (summary of an ingested source), `analysis/`; or Synapse
-   extensions `skills/`, `projects/`. (Use `journal/` only for raw, dated capture.)
+3. **Pick the folder** (see `_meta/categories`): core `concepts/`, `techniques/` (described
+   pattern/how-to), `projects/`, `skills/` (executed + rated procedure); or optional
+   `sources/` (summary of an ingested source), `analysis/`, `people/`, `organizations/`.
+   (Use `journal/` only for raw, dated capture.)
 4. **Add frontmatter**: `title`, `category`, `tags` (1-5, from `_meta/taxonomy.md`), `sources`
    (the `raw/` file / URL / path it came from — provenance is mandatory for ingested material),
    `summary`, `created`, `updated`.

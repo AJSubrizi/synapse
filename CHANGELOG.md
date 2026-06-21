@@ -22,6 +22,18 @@
     `journal/`) are kept on top. (Replaces the previous `references/`, `synthesis/`, `entities/`.)
   - Schema/workflow/docs (`AGENTS.md`, `_meta/workflow.md`, README, ARCHITECTURE, bootstrap
     templates) rewritten around the three layers and operations.
+  - **Configurable categories** fit to the coding-agent domain: a single source of truth
+    (`_meta/vault_config.py`, overridable via the plain `_meta/categories` file) replaces the
+    hardcoded list across validate/dedup/search/wiki. Core (always scaffolded):
+    `concepts/ techniques/ projects/ skills/`; optional (created on demand):
+    `sources/ analysis/ people/ organizations/ journal/`. `synapse vault <name>` now
+    scaffolds only the core set + `raw/` + `sources/`.
+  - **`techniques/` vs `skills/` clarified**: a *technique* is a described pattern you
+    reference; a *skill* is an executed, **rated** procedure (`synapse skill use|rate`).
+  - **`raw/` is pragmatic, not mandatory**: used when ingesting an external source;
+    session-distilled knowledge goes straight to the wiki. Documented in schema + README.
+  - **README** rewritten model-/tool-agnostic and concise (441 → ~120 lines) with a Mermaid
+    loop diagram; emphasizes it works with any LLM and any agentic CLI.
 - **Continuous integration loop (Claude Code hooks)** — turn Phase 0's one-shot vault read
   into an ongoing loop:
   - `prompt-retrieve.sh` (**UserPromptSubmit**): ranks the vault against every prompt and

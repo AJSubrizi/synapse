@@ -7,7 +7,9 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WIKI_SRC = os.path.join(ROOT, "templates", "vault", "_meta", "wiki.py")
+META_SRC = os.path.join(ROOT, "templates", "vault", "_meta")
+WIKI_SRC = os.path.join(META_SRC, "wiki.py")
+CONFIG_SRC = os.path.join(META_SRC, "vault_config.py")
 
 
 def assert_true(cond, msg=""):
@@ -20,15 +22,23 @@ def assert_in(item, container, msg=""):
         raise AssertionError(msg or f"{item!r} not in {container!r}")
 
 
-def make_vault():
-    """A throwaway vault skeleton with the headings wiki.py expects."""
+def make_vault(categories: str | None = None):
+    """A throwaway vault skeleton with the headings wiki.py expects.
+
+    Pass `categories` to write a custom `_meta/categories` override and exercise
+    configurability.
+    """
     d = tempfile.mkdtemp()
     os.makedirs(os.path.join(d, "_meta"))
     for cat in ("concepts", "sources"):
         os.makedirs(os.path.join(d, cat))
     shutil.copy(WIKI_SRC, os.path.join(d, "_meta", "wiki.py"))
+    shutil.copy(CONFIG_SRC, os.path.join(d, "_meta", "vault_config.py"))
+    if categories is not None:
+        with open(os.path.join(d, "_meta", "categories"), "w") as fh:
+            fh.write(categories)
     with open(os.path.join(d, "index.md"), "w") as fh:
-        fh.write("# Wiki Index\n\n## Concepts\n\n## Sources\n\n## Analysis\n")
+        fh.write("# Wiki Index\n\n## Concepts\n\n## Sources\n\n## Analysis\n## Runbooks\n")
     with open(os.path.join(d, "log.md"), "w") as fh:
         fh.write("# Wiki Log\n")
     return d
@@ -97,6 +107,19 @@ class TestWikiNew:
         try:
             r = run_new(v, "--category", "bogus", "--title", "X")
             assert_true(r.returncode == 2, "unknown category should exit 2")
+        finally:
+            shutil.rmtree(v)
+
+    def test_configurable_categories(self):
+        # A custom _meta/categories defines the valid set: a custom category is accepted,
+        # and a former default not listed is now rejected.
+        v = make_vault(categories="# custom\nconcepts\nrunbooks\n")
+        try:
+            ok = run_new(v, "--category", "runbooks", "--title", "Deploy steps")
+            assert_true(ok.returncode == 0, f"custom category rejected: {ok.stderr}")
+            assert_true(os.path.isfile(os.path.join(v, "runbooks", "deploy-steps.md")))
+            nope = run_new(v, "--category", "sources", "--title", "Y")
+            assert_true(nope.returncode == 2, "category not in override should be rejected")
         finally:
             shutil.rmtree(v)
 

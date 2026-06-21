@@ -7,11 +7,23 @@ AI agents (Synapse). It has three layers and three operations.
 
 1. **`raw/`** — immutable sources (articles, transcripts, papers, captured docs). Read,
    never edit. Supersede a source with a newer one rather than changing it in place.
-2. **wiki** — the Markdown you own and maintain, derived from `raw/` and from work:
-   `concepts/` · `people/` · `organizations/` · `techniques/` · `sources/` · `analysis/`
-   plus Synapse extensions `skills/` · `projects/` · `journal/`.
+   **Pragmatic, not mandatory:** use `raw/` when you ingest an external source; knowledge
+   distilled from a live session goes straight to the wiki (there is no raw artifact).
+2. **wiki** — the Markdown you own and maintain, derived from `raw/` and from work.
+   Categories are configurable in `_meta/categories`; defaults:
+   - **core** (used constantly): `concepts/` · `techniques/` · `projects/` · `skills/`
+   - **optional** (created on demand): `sources/` · `analysis/` · `people/` · `organizations/` · `journal/`
 3. **schema** — this file: conventions, naming, frontmatter, and the maintenance rules
    the agent follows so the wiki stays coherent.
+
+### techniques/ vs skills/ — which how-to goes where
+
+Both hold procedures; the difference is whether it's *executed and rated*:
+- **`techniques/`** — knowledge: a pattern/approach you describe and reference (e.g. "use
+  reciprocal rank fusion to merge rankers"). Not run, not scored.
+- **`skills/`** — an executable procedure the agent actually runs and then scores via
+  `synapse skill use|rate` (scorecard, deps, versioning). Use this when the steps are meant
+  to be followed to produce an outcome, and you want the vault to learn which ones work.
 
 Navigation: `index.md` (catalog), `log.md` (append-only history), `hot.md` (recent/active).
 
@@ -21,8 +33,8 @@ Navigation: `index.md` (catalog), `log.md` (append-only history), `hot.md` (rece
 `synapse ingest <path-or-url>` records the source under `raw/`, then:
 1. Read the raw source; note the takeaways.
 2. Write a summary page under `sources/` that cites the raw file as provenance.
-3. Revise affected `concepts/` `people/` `organizations/` `techniques/` `analysis/` pages
-   (a single source often touches several).
+3. Revise affected wiki pages — `concepts/` `techniques/` `projects/` `analysis/` (and
+   any optional category that applies); a single source often touches several.
 4. Update `index.md` and append to `log.md`.
 5. `synapse lint` → 0 errors.
 

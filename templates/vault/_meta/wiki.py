@@ -23,11 +23,15 @@ import sys
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Karpathy wiki categories (core) + Synapse extensions. Each maps to an index.md heading.
-CATEGORIES = (
-    "concepts", "people", "organizations", "techniques", "sources", "analysis",
-    "skills", "projects", "journal",
-)
+# Categories from the single source of truth (_meta/vault_config.py, configurable via
+# _meta/categories). Each maps to an index.md heading. Test-time fallback if imported.
+try:
+    from vault_config import CATEGORIES
+except Exception:
+    CATEGORIES = (
+        "concepts", "techniques", "projects", "skills",
+        "sources", "analysis", "people", "organizations", "journal",
+    )
 
 
 def now_iso() -> str:

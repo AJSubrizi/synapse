@@ -43,7 +43,10 @@ from collections import Counter, defaultdict
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 META = os.path.join(VAULT, "_meta")
-CONTENT_DIRS = ("concepts", "people", "organizations", "techniques", "sources", "analysis", "skills", "projects", "journal")
+try:  # single source of truth (_meta/vault_config.py), with a test-time fallback
+    from vault_config import CATEGORIES as CONTENT_DIRS
+except Exception:
+    CONTENT_DIRS = ("concepts", "techniques", "projects", "skills", "sources", "analysis", "people", "organizations", "journal")
 DIGEST = os.path.join(META, "digest.md")
 INDEX = os.path.join(META, "retrieval.json")
 STOPWORDS = {

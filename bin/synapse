@@ -287,7 +287,7 @@ ingest_cmd() {
 ingest recipe (see _meta/workflow.md → Ingest):
   1. Read $raw_rel (immutable source).
   2. Fill the Takeaways in ${page:-the sources/ page} — the high-signal distillation.
-  3. Revise affected concepts/, people/, organizations/, techniques/, analysis/ pages
+  3. Revise affected wiki pages (concepts/, techniques/, projects/, analysis/, ...)
      and cross-link them with [[wikilinks]].
   4. synapse lint  (health-check the result — 0 errors).
 EOF
@@ -475,13 +475,13 @@ scaffold_vault() {
   if [[ -d "$BRAIN_VAULT/_meta" ]]; then seed="$BRAIN_VAULT"
   elif [[ -d "$BRAIN_ROOT/vault/_meta" ]]; then seed="$BRAIN_ROOT/vault"; fi
 
-  # Karpathy LLM Wiki layout: immutable raw/ sources, LLM-owned wiki categories,
-  # plus Synapse extensions (skills/, projects/, journal/).
+  # Karpathy LLM Wiki layout: immutable raw/ sources + the LLM-owned wiki. Scaffold the
+  # core categories a coding vault uses constantly (concepts/techniques/projects/skills)
+  # plus sources/ (ingest target); optional ones (people/organizations/analysis/journal,
+  # see _meta/categories) are created on demand when first filed into.
   mkdir -p \
-    "$target/_meta/hooks" "$target/raw" \
-    "$target/concepts" "$target/people" "$target/organizations" \
-    "$target/techniques" "$target/sources" "$target/analysis" \
-    "$target/skills" "$target/projects" "$target/journal"
+    "$target/_meta/hooks" "$target/raw" "$target/sources" \
+    "$target/concepts" "$target/techniques" "$target/projects" "$target/skills"
 
   if [[ -n "$seed" ]]; then
     cp -R "$seed/_meta/." "$target/_meta/" 2>/dev/null || true
@@ -490,7 +490,7 @@ scaffold_vault() {
   # shellcheck disable=SC2016  # backticks are literal Markdown, not a command substitution
   [[ -f "$target/raw/README.md" ]] || printf '# raw/ — immutable sources\n\nDrop original sources here (or let `synapse ingest` copy them in). The wiki is\nderived from these; never edit raw files in place — supersede them with a new source.\n' > "$target/raw/README.md"
   # shellcheck disable=SC2016  # backticks are literal Markdown, not a command substitution
-  [[ -f "$target/index.md" ]]  || printf '# Index\n\n_Empty vault. Ingest a source (`synapse ingest <path>`), then distill it into concepts/, people/, organizations/, techniques/, sources/, analysis/._\n' > "$target/index.md"
+  [[ -f "$target/index.md" ]]  || printf '# Index\n\n_Empty vault. Ingest a source (`synapse ingest <path>`), then distill it into concepts/, techniques/, projects/, skills/ (see `_meta/categories` for the full, configurable set)._\n' > "$target/index.md"
   [[ -f "$target/hot.md" ]]    || printf '# Hot\n\n_Most-used notes surface here._\n' > "$target/hot.md"
   [[ -f "$target/log.md" ]]    || printf '# Log\n' > "$target/log.md"
   # shellcheck disable=SC2016  # backticks are literal Markdown, not a command substitution

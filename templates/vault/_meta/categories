@@ -1,0 +1,16 @@
+# Wiki categories for this vault — one per line, '#' starts a comment.
+# Edit freely: this is the single source of truth the engines (validate/dedup/search/wiki)
+# read. Delete the ones you don't use, or add your own. Removing a line only stops new
+# pages being filed there; existing pages still validate if their folder is listed.
+#
+# --- core (a coding vault uses these constantly; scaffolded by `synapse vault <name>`) ---
+concepts
+techniques
+projects
+skills
+# --- optional (supported; created on demand the first time you file into them) ---
+sources
+analysis
+people
+organizations
+journal

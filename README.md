@@ -48,9 +48,12 @@ flowchart LR
 
 | Layer | What it is |
 | --- | --- |
-| **`raw/`** | Immutable original sources. Read, never edited — superseded, not rewritten. |
-| **wiki** | The LLM-owned Markdown derived from `raw/`: `concepts/` `people/` `organizations/` `techniques/` `sources/` `analysis/` (+ Synapse extras `skills/` `projects/` `journal/`), wired with `[[wikilinks]]`. |
+| **`raw/`** | Immutable original sources. Read, never edited — superseded, not rewritten. Pragmatic: used when you ingest an external source (session-distilled knowledge skips it). |
+| **wiki** | The LLM-owned Markdown derived from `raw/`, wired with `[[wikilinks]]`. **Configurable categories** (`_meta/categories`): core `concepts/` `techniques/` `projects/` `skills/`; optional, on demand, `sources/` `analysis/` `people/` `organizations/` `journal/`. |
 | **schema** | `AGENTS.md` — the conventions the agent follows so the wiki stays coherent. |
+
+> `techniques/` vs `skills/`: a **technique** is a described pattern you reference; a
+> **skill** is an executed procedure the agent runs and *rates* (scorecard via `synapse skill`).
 
 | Operation | Command | Does |
 | --- | --- | --- |

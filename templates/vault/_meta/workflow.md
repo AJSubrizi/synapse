@@ -49,8 +49,9 @@ worth remembering.
 
 1. If the knowledge came from an external source, `synapse ingest <path-or-url>` first so
    the source is preserved (immutable) under `raw/` with provenance.
-2. Split knowledge into atomic notes; classify into the right category
-   (`concepts/` `people/` `organizations/` `techniques/` `sources/` `analysis/`); cross-link.
+2. Split knowledge into atomic notes; classify into the right category — core
+   `concepts/` `techniques/` `projects/` `skills/`, or an optional one (see
+   `_meta/categories`); cross-link.
 3. A query answer worth keeping is filed back with `synapse file <category> <title>`
    (creates page + index + log), then you fill the body — knowledge compounds.
 4. Update `index.md`, `hot.md`, and `log.md`.
