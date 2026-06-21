@@ -32,18 +32,22 @@ command and keeps the whole thing as Markdown in a git repo.
 
 ```mermaid
 flowchart LR
-  S[Sources<br/>docs · repos · RFCs · sessions]
-  R[(raw/<br/>immutable)]
-  W[wiki<br/>concepts · people · techniques<br/>sources · analysis]
-  A([AI coding agent])
-  C[AGENTS.md<br/>schema / rules]
+  S["Sources<br/>docs · repos · RFCs · sessions"]
+  A(["AI agent<br/>any LLM / CLI"])
 
-  S -- "synapse ingest" --> R
-  R -- "distill" --> W
-  W -- "query · per-turn retrieval" --> A
-  A -- "synapse file · distill" --> W
-  W -- "synapse lint" --> W
-  C -. governs .-> W
+  subgraph V["the vault (git-backed Markdown)"]
+    direction LR
+    R[("raw/<br/>immutable")]
+    W["wiki<br/>concepts · techniques · projects · skills<br/>(+ optional categories)"]
+    C["AGENTS.md<br/>schema · rules"]
+    R -->|distill| W
+    C -.->|governs| W
+  end
+
+  S -->|"1 · ingest"| R
+  W -->|"2 · query (per turn)"| A
+  A -->|"3 · file / distill"| W
+  W -->|"lint (health-check)"| W
 ```
 
 | Layer | What it is |
