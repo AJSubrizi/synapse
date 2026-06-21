@@ -68,6 +68,10 @@ flowchart LR
 Mapped onto a coding session: **query before work → work with context → ingest/distill if
 meaningful → lint before close.** The hooks make that loop automatic (see below).
 
+A wiki only earns its keep if it keeps growing — so `synapse metrics` measures whether the
+loop is live: page count and growth, ingest/file activity, retrieval coverage, and a blunt
+warning when distillation has gone quiet.
+
 ## Why not just RAG?
 
 RAG re-derives from raw chunks on every query and never retains anything — perpetually
@@ -104,6 +108,7 @@ synapse ingest SRC      # record a file/URL under raw/ + create a linked sources
 synapse query QUERY     # ranked retrieval (BM25 by default, or a built index)
 synapse file CAT TITLE  # file knowledge back as a wiki page (frontmatter + index + log)
 synapse lint [--strict] # health-check the wiki (alias: check); --git-staleness for git-based age
+synapse metrics         # loop metrics: size, growth, activity, retrieval, stall signal
 synapse hooks install   # wire the continuous-loop hooks
 synapse setup TARGET    # write the agent context file (claude-code|codex|cursor|gemini|opencode)
 synapse <cli>           # run an agent (claude|codex|gemini|opencode) with the vault loaded

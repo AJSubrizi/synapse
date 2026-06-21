@@ -73,6 +73,7 @@ Usage:
   $CMD_NAME query <query>    ranked retrieval (lexical, or semantic via the built index)
   $CMD_NAME file <cat> <ttl> file knowledge back as a wiki page (index + log) — compounds query
   $CMD_NAME lint [--strict]  health-check the wiki: validate + dedup + skill deps (= check)
+  $CMD_NAME metrics          loop metrics: size, growth, activity, retrieval, stall signal
 
   $CMD_NAME search [opts]    filter notes by query, tag, or title (grep-based lookup)
   $CMD_NAME digest           (re)write _meta/digest.md — a compact map of the vault
@@ -583,6 +584,19 @@ case "${1:-}" in
   hooks)
     hooks_cmd "${2:-install}" "${3:-$HOME/.claude/settings.json}"
     exit $?
+    ;;
+  metrics|stats)
+    shift
+    m="$BRAIN_VAULT/_meta/metrics.py"
+    if [[ ! -f "$m" ]]; then
+      printf 'synapse: metrics engine not found at %s\n' "$m" >&2
+      exit 2
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+      printf 'synapse: python3 not found; cannot run metrics\n' >&2
+      exit 2
+    fi
+    exec python3 "$m" "$@"
     ;;
   query|index|digest)
     if [[ "$1" == "digest" && -z "${2:-}" ]]; then

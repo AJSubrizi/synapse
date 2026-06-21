@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **`synapse metrics`** — loop instrumentation (`_meta/metrics.py`): page count + growth,
+  ingest/file activity from `log.md`, retrieval index coverage, and a blunt stall signal
+  (`⚠ no distillation in N days`). Makes the wiki's compounding *measurable*, not assumed.
+  Stdlib-only, offline, read-only; `--json` for scripting. New `tests/test_metrics.py`.
+- **Process hygiene** (`CONTRIBUTING.md`): branch-from-`main`, one PR per coherent change,
+  don't merge early, tag releases, avoid force-pushing shared history. Test command aligned
+  to CI (all `tests/test_*.py`).
 - **Aligned to Karpathy's LLM Wiki** — Synapse now adopts the
   [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)
   as its baseline: three layers (immutable `raw/` sources → an LLM-owned wiki → the
