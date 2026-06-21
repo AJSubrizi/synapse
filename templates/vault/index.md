@@ -4,13 +4,22 @@ title: Wiki Index
 
 # Wiki Index
 
+Catalog of every wiki page, one line each. Updated on every ingest/distill.
+Sources live (immutable) under `raw/`; the pages below are derived from them.
+
 ## Concepts
 
 - [[workflow]] — default loop: read the vault before work, distill knowledge after work ( #knowledge #workflow)
 
-## References
+## People
 
-## Synthesis
+## Organizations
+
+## Techniques
+
+## Sources
+
+## Analysis
 
 ## Skills
 
@@ -19,7 +28,4 @@ title: Wiki Index
 
 ## Projects
 
-## Entities
-
 ## Journal
-

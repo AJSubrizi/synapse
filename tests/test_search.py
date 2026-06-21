@@ -183,15 +183,18 @@ class TestEmbeddingsBackend:
             print("    (skipped: sentence-transformers not installed)")
             return
         import json
+        import os as _os
         with temp_vault():
             capture(search.cmd_index, "embeddings")
             idx = json.load(open(search.INDEX, encoding="utf-8"))
             assert_equal(idx["backend"], "embeddings", "embeddings backend")
             assert_equal(idx["_stats"]["encoded"], 2, "first build encodes all")
-            assert_true(all(d.get("chunks") for d in idx["docs"]), "chunks stored")
+            assert_true(idx.get("vectors") and idx.get("dim", 0) > 0, "binary sidecar recorded")
+            assert_true(_os.path.isfile(search._vec_path()), "retrieval.vec written")
+            assert_true(all(d.get("n_chunks", 0) > 0 for d in idx["docs"]), "per-note chunk counts")
             capture(search.cmd_index, "embeddings")  # rebuild, nothing changed
             idx2 = json.load(open(search.INDEX, encoding="utf-8"))
-            assert_equal(idx2["_stats"]["reused"], 2, "rebuild reuses unchanged notes")
+            assert_equal(idx2["_stats"]["reused"], 2, "rebuild reuses unchanged notes (binary)")
             _, out = capture(search.cmd_query, "capping how often clients call", 10)
             assert_true("rate-limit.md" in out, "semantic query finds throttling note")
             capture(search.cmd_index, "hybrid")

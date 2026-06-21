@@ -39,6 +39,15 @@ jobs:
       - name: Demo script smoke (throwaway vault, learn -> index -> recall)
         run: bash scripts/demo.sh
 
+      - name: Hook smoke (UserPromptSubmit / Stop never crash or block wrongly)
+        run: |
+          H=templates/vault/_meta/hooks
+          printf '{"prompt":"how do I distill knowledge after work"}' | bash "$H/prompt-retrieve.sh" \
+            | python3 -c 'import json,sys; assert "synapse-memory" in json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"]'
+          printf '{"prompt":"x"}' | bash "$H/prompt-retrieve.sh"        # too short -> no output, exit 0
+          printf 'not json'       | bash "$H/prompt-retrieve.sh"        # garbage -> no crash, exit 0
+          printf '{"stop_hook_active":true}' | bash "$H/stop-check.sh"  # loop guard -> exit 0
+
       - name: Smoke test install + doctor
         run: |
           tmp="$(mktemp -d)"
