@@ -49,14 +49,20 @@ worth remembering.
 
 1. If the knowledge came from an external source, `synapse ingest <path-or-url>` first so
    the source is preserved (immutable) under `raw/` with provenance.
-2. Split knowledge into atomic notes; classify into the right category — core
+2. **Search before create:** `synapse search "<topic>"` (or `synapse query`). If a note
+   already covers the idea, update it (`synapse` file helpers / bump `updated`) instead of
+   adding a near-duplicate.
+3. Split knowledge into atomic notes; classify into the right category — core
    `concepts/` `techniques/` `projects/` `skills/`, or an optional one (see
    `_meta/categories`); cross-link.
-3. A query answer worth keeping is filed back with `synapse file <category> <title>`
+4. A query answer worth keeping is filed back with `synapse file <category> <title>`
    (creates page + index + log), then you fill the body — knowledge compounds.
-4. Update `index.md`, `hot.md`, and `log.md`.
-5. Run `synapse lint` (or `python3 _meta/validate.py`) — **0 errors**; review dedup candidates.
+5. Update `index.md`, `hot.md`, and `log.md` when the CLI did not.
+6. **Validate and self-correct (required):** run `synapse lint --strict`, fix every
+   warning/error it prints, and re-run until clean. Do not stop at the first pass.
+   Near-duplicate candidates from dedup are part of this loop — merge or differentiate.
 
 ## Session close · lint
 
-If you **modified files under the vault** this session, run `synapse lint` before finishing.
+If you **modified files under the vault** this session, run `synapse lint --strict` and
+clear all findings before finishing.

@@ -49,9 +49,14 @@ Do not run `install.sh` reinit blindly on a custom block — it writes default p
 
 ## Cursor / Claude Code
 
-- **Cursor:** `.cursor/rules/synapse.mdc` with `alwaysApply: true`, absolute vault paths.
-- **Claude Code:** wire `vault/_meta/hooks/session-enforce.sh` (SessionStart/SubagentStart)
-  and `stop-check.sh` (Stop) in `.claude/settings.json`.
+- **Cursor:** `synapse setup cursor` writes `.cursor/rules/synapse.mdc` with
+  `alwaysApply: true` (continuous Phase 0 / distill / lint loop). Template:
+  `templates/cursor/synapse.mdc`.
+- **Claude Code:** `synapse hooks install` (or `synapse onboard`) wires
+  `vault/_meta/hooks/{session-enforce,prompt-retrieve,stop-check}.sh` into
+  `~/.claude/settings.json`.
+
+Prefer `synapse onboard` for a one-shot Claude + Cursor setup with seeded demo notes.
 
 See `templates/vault/_meta/hooks/` for starter scripts.
 

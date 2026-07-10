@@ -64,7 +64,10 @@ wiki of interlinked Markdown, and a schema (AGENTS.md) the agent follows to main
 Usage:
   $CMD_NAME <cli> [args...]   run an agent CLI with the vault environment loaded
   $CMD_NAME vault [name]     list vaults, or switch to / create vault <name>
-  $CMD_NAME setup <target>   install agent context file (claude-code|codex|cursor|gemini|opencode)
+  $CMD_NAME setup [target]   install agent context (claude-code|codex|cursor|gemini|opencode);
+                             no args = list targets + configured status
+  $CMD_NAME onboard [...]    one-shot: upgrade engine + setup + hooks + seed + doctor
+  $CMD_NAME upgrade          sync vault engine files from installed templates
   $CMD_NAME hooks [install]  wire the continuous-loop hooks into ~/.claude/settings.json ('print' to preview)
   $CMD_NAME status           vault active? session id, staleness
 
@@ -80,7 +83,7 @@ Usage:
   $CMD_NAME index [--backend bm25|tfidf|embeddings|hybrid]   build optional retrieval index (default: bm25)
   $CMD_NAME skill <cmd>      skill scorecards: list | use | rate | show | suggest | deps
   $CMD_NAME check [--strict] alias for lint
-  $CMD_NAME doctor           verify boot files exist
+  $CMD_NAME doctor           verify boot files, deps, hooks, Cursor rule, engine, index
   $CMD_NAME which <cmd>      resolve command (and if Synapse wraps it)
   $CMD_NAME reinit           idempotently (re)write the shell-rc block
   $CMD_NAME env              print environment
@@ -91,9 +94,10 @@ Search options:
   --exact           exact string match (no regex)
 
 Examples:
+  $CMD_NAME onboard
+  $CMD_NAME setup cursor
   $CMD_NAME codex
   $CMD_NAME claude
-  $CMD_NAME opencode
   $CMD_NAME search --tag security
   $CMD_NAME search "FastAPI rate limit"
 
@@ -102,7 +106,8 @@ EOF
 }
 
 doctor() {
-  local rc=0 path
+  local rc=0 path mark
+  printf '== boot files ==\n'
   for path in "$BRAIN_BOOT" "$BRAIN_VAULT/index.md" "$BRAIN_VAULT/_meta/workflow.md" "$BRAIN_GLOBAL_AGENTS"; do
     if [[ -f "$path" ]]; then
       printf 'ok   %s\n' "$path"
@@ -111,6 +116,73 @@ doctor() {
       rc=1
     fi
   done
+
+  printf '\n== dependencies ==\n'
+  if command -v python3 >/dev/null 2>&1; then
+    printf 'ok   python3 (%s)\n' "$(command -v python3)"
+  else
+    printf 'miss python3 (required)\n'
+    rc=1
+  fi
+  if command -v jq >/dev/null 2>&1; then
+    printf 'ok   jq (%s)\n' "$(command -v jq)"
+  else
+    printf 'warn jq (needed for Claude SessionStart hook)\n'
+  fi
+
+  printf '\n== engine ==\n'
+  local eng_ver="" tpl_ver="" tpl_meta
+  [[ -f "$BRAIN_VAULT/_meta/ENGINE_VERSION" ]] && eng_ver="$(tr -d '[:space:]' < "$BRAIN_VAULT/_meta/ENGINE_VERSION")"
+  tpl_meta="$(resolve_templates)"
+  if [[ -n "$tpl_meta" && -f "$tpl_meta/vault/_meta/ENGINE_VERSION" ]]; then
+    tpl_ver="$(tr -d '[:space:]' < "$tpl_meta/vault/_meta/ENGINE_VERSION")"
+  fi
+  for path in wiki.py search.py validate.py metrics.py vault_config.py; do
+    if [[ -f "$BRAIN_VAULT/_meta/$path" ]]; then
+      printf 'ok   _meta/%s\n' "$path"
+    else
+      printf 'miss _meta/%s  (run: %s upgrade)\n' "$path" "$CMD_NAME"
+      rc=1
+    fi
+  done
+  if [[ -n "$eng_ver" && -n "$tpl_ver" && "$eng_ver" != "$tpl_ver" ]]; then
+    printf 'warn engine drift: vault=%s templates=%s  (run: %s upgrade)\n' "$eng_ver" "$tpl_ver" "$CMD_NAME"
+  elif [[ -n "$eng_ver" ]]; then
+    printf 'ok   ENGINE_VERSION %s\n' "$eng_ver"
+  else
+    printf 'warn ENGINE_VERSION missing  (run: %s upgrade)\n' "$CMD_NAME"
+  fi
+
+  printf '\n== integrations ==\n'
+  # Claude hooks
+  local settings="$HOME/.claude/settings.json"
+  if [[ -f "$settings" ]] && grep -q '_meta/hooks/prompt-retrieve.sh' "$settings" 2>/dev/null; then
+    printf 'ok   Claude Code hooks wired (%s)\n' "$settings"
+  elif command -v claude >/dev/null 2>&1 || [[ -d "$HOME/.claude" ]]; then
+    printf 'warn Claude Code present but hooks not wired  (run: %s hooks install)\n' "$CMD_NAME"
+  else
+    printf 'skip Claude Code (not detected)\n'
+  fi
+  # Cursor rule
+  local cursor_rule=""
+  if [[ -f "$PWD/.cursor/rules/synapse.mdc" ]]; then
+    cursor_rule="$PWD/.cursor/rules/synapse.mdc"
+  elif [[ -f "$HOME/.cursor/rules/synapse.mdc" ]]; then
+    cursor_rule="$HOME/.cursor/rules/synapse.mdc"
+  fi
+  if [[ -n "$cursor_rule" ]]; then
+    printf 'ok   Cursor rule (%s)\n' "$cursor_rule"
+  else
+    printf 'warn Cursor rule missing  (run: %s setup cursor)\n' "$CMD_NAME"
+  fi
+
+  printf '\n== retrieval ==\n'
+  if [[ -f "$BRAIN_VAULT/_meta/search.py" ]] && command -v python3 >/dev/null 2>&1; then
+    python3 "$BRAIN_VAULT/_meta/search.py" stale || true
+  else
+    printf 'skip index check\n'
+  fi
+
   return "$rc"
 }
 
@@ -181,6 +253,8 @@ EOF
 
 check() {
   local v="$BRAIN_VAULT/_meta/validate.py" d="$BRAIN_VAULT/_meta/dedup.py" sk="$BRAIN_VAULT/_meta/skill.py" rc=0
+  local strict=0
+  for a in "$@"; do [[ "$a" == "--strict" ]] && strict=1; done
   if ! command -v python3 >/dev/null 2>&1; then
     printf 'synapse: python3 not found; cannot run check\n' >&2
     return 2
@@ -194,11 +268,21 @@ check() {
   fi
   if [[ -f "$d" ]]; then
     printf '\n== dedup (candidates) ==\n'
-    python3 "$d" || true
+    if [[ "$strict" -eq 1 ]]; then
+      python3 "$d" --strict || rc=$?
+    else
+      python3 "$d" || true
+    fi
   fi
   if [[ -f "$sk" ]]; then
     printf '\n== skill deps ==\n'
     BRAIN_SKILLS_DIR="$BRAIN_SKILLS_DIR" python3 "$sk" deps || rc=$?
+  fi
+  if [[ -f "$BRAIN_VAULT/_meta/search.py" ]]; then
+    printf '\n== retrieval index ==\n'
+    python3 "$BRAIN_VAULT/_meta/search.py" stale || {
+      if [[ "$strict" -eq 1 ]]; then rc=1; fi
+    }
   fi
   return "$rc"
 }
@@ -296,10 +380,33 @@ EOF
 
 # File a piece of knowledge back as a wiki page (frontmatter + index + log). The
 # compounding half of query: a good answer becomes a durable page, not a one-off reply.
+# `synapse file update <stem>` refreshes an existing page.
 file_cmd() {
   local w="$BRAIN_VAULT/_meta/wiki.py"
+  if [[ "${1:-}" == "update" ]]; then
+    shift
+    if [[ ! -f "$w" ]]; then
+      printf 'synapse: wiki engine not found at %s\n' "$w" >&2
+      return 2
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+      printf 'synapse: python3 not found; cannot update a page\n' >&2
+      return 2
+    fi
+    local stem="${1:-}"
+    if [[ -z "$stem" ]]; then
+      printf 'usage: %s file update <stem> [--summary S] [--tags a,b] [--link PAGE]\n' "$CMD_NAME"
+      return 2
+    fi
+    shift
+    local page
+    page="$(python3 "$w" update --stem "$stem" "$@")" || return $?
+    printf 'synapse: updated %s\n' "$page"
+    return 0
+  fi
   if [[ "${1:-}" == "" || "${2:-}" == "" ]]; then
     printf 'usage: %s file <category> <title> [--summary S] [--tags a,b] [--source SRC] [--link PAGE]\n' "$CMD_NAME"
+    printf '       %s file update <stem> [--summary S] [--tags a,b] [--link PAGE]\n' "$CMD_NAME"
     printf 'categories: concepts people organizations techniques sources analysis skills projects journal\n'
     return 2
   fi
@@ -402,10 +509,26 @@ setup_cmd() {
   templates="$(resolve_templates)"
 
   if [[ -z "$target" ]]; then
-    printf 'usage: %s setup <target> [dir]\n\n' "$CMD_NAME"
-    printf 'targets: claude-code  codex  cursor  gemini  opencode\n'
-    printf 'installs the matching context file into [dir] (default: current dir),\n'
-    printf 'pointed at the active vault: %s\n' "$BRAIN_VAULT"
+    printf 'targets (active vault: %s):\n\n' "$BRAIN_VAULT"
+    local mark
+    # claude-code
+    if [[ -f "$dest_dir/CLAUDE.md" || -f "$HOME/CLAUDE.md" ]]; then mark="configured"; else mark="not set"; fi
+    if [[ -f "$HOME/.claude/settings.json" ]] && grep -q '_meta/hooks/prompt-retrieve.sh' "$HOME/.claude/settings.json" 2>/dev/null; then
+      mark="$mark + hooks"
+    fi
+    printf '  claude-code   %s\n' "$mark"
+    # cursor
+    if [[ -f "$dest_dir/.cursor/rules/synapse.mdc" ]]; then mark="configured (.cursor/rules/synapse.mdc)"
+    elif [[ -f "$dest_dir/AGENTS.md" ]]; then mark="partial (AGENTS.md only — re-run setup cursor)"
+    else mark="not set"; fi
+    printf '  cursor        %s\n' "$mark"
+    # codex / opencode / gemini
+    if [[ -f "$dest_dir/AGENTS.md" ]]; then mark="configured"; else mark="not set"; fi
+    printf '  codex         %s\n' "$mark"
+    printf '  opencode      %s\n' "$mark"
+    if [[ -f "$dest_dir/GEMINI.md" || -f "$HOME/GEMINI.md" ]]; then mark="configured"; else mark="not set"; fi
+    printf '  gemini        %s\n' "$mark"
+    printf '\nusage: %s setup <target> [dir]\n' "$CMD_NAME"
     return 0
   fi
   if [[ -z "$templates" ]]; then
@@ -413,10 +536,63 @@ setup_cmd() {
     return 2
   fi
 
+  case "$target" in
+    cursor)
+      local src="$templates/cursor/synapse.mdc"
+      # Fall back to repo-relative if install only stashed top-level templates
+      [[ -f "$src" ]] || src="$templates/../cursor/synapse.mdc"
+      if [[ ! -f "$src" ]]; then
+        # Last resort: synthesize from AGENTS.md content into .mdc
+        src=""
+      fi
+      local rule_dir="$dest_dir/.cursor/rules"
+      local dst="$rule_dir/synapse.mdc"
+      mkdir -p "$rule_dir"
+      if [[ -n "$src" && -f "$src" ]]; then
+        if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
+          printf 'synapse: synapse.mdc already up to date (%s)\n' "$dst"
+        else
+          if cp "$src" "$dst"; then
+            printf 'synapse: installed Cursor rule -> %s\n' "$dst"
+          else
+            printf 'synapse: failed to write Cursor rule -> %s\n' "$dst" >&2
+            return 1
+          fi
+        fi
+      else
+        # Inline minimal rule if template missing
+        cat > "$dst" <<EOF
+---
+description: Synapse LLM Wiki continuous loop
+alwaysApply: true
+---
+
+# Synapse
+
+Query the vault before meaningful work: \`synapse query "<topic>"\`.
+After meaningful work, distill with \`synapse file\` / update notes, then
+\`synapse lint --strict\`. Vault: $BRAIN_VAULT
+EOF
+        if [[ ! -f "$dst" ]]; then
+          printf 'synapse: failed to write Cursor rule -> %s\n' "$dst" >&2
+          return 1
+        fi
+        printf 'synapse: installed Cursor rule (inline) -> %s\n' "$dst"
+      fi
+      # Also drop AGENTS.md if missing (Codex/shared agents)
+      if [[ ! -f "$dest_dir/AGENTS.md" && -f "$templates/AGENTS.md" ]]; then
+        cp "$templates/AGENTS.md" "$dest_dir/AGENTS.md"
+        printf 'synapse: installed AGENTS.md -> %s/AGENTS.md\n' "$dest_dir"
+      fi
+      printf 'vault: %s\n' "$BRAIN_VAULT"
+      return 0
+      ;;
+  esac
+
   local src name
   case "$target" in
     claude|claude-code)     src="$templates/CLAUDE.md";  name="CLAUDE.md" ;;
-    codex|opencode|cursor)  src="$templates/AGENTS.md";  name="AGENTS.md" ;;
+    codex|opencode)         src="$templates/AGENTS.md";  name="AGENTS.md" ;;
     gemini)                 src="$templates/GEMINI.md";  name="GEMINI.md" ;;
     *)
       printf 'synapse: unknown target: %s (claude-code|codex|cursor|gemini|opencode)\n' "$target" >&2
@@ -448,6 +624,189 @@ setup_cmd() {
     fi
   fi
   printf 'vault: %s\n' "$BRAIN_VAULT"
+}
+
+# Sync engine files from bundled templates into the active vault (always overwrite engines).
+upgrade_cmd() {
+  local templates src_meta
+  templates="$(resolve_templates)"
+  if [[ -z "$templates" ]]; then
+    printf 'synapse: templates not found (set SYNAPSE_TEMPLATES)\n' >&2
+    return 2
+  fi
+  src_meta="$templates/vault/_meta"
+  if [[ ! -d "$src_meta" ]]; then
+    printf 'synapse: engine templates missing at %s\n' "$src_meta" >&2
+    return 2
+  fi
+  mkdir -p "$BRAIN_VAULT/_meta/hooks"
+  local f
+  for f in validate.py dedup.py skill.py search.py wiki.py metrics.py vault_config.py \
+           workflow.md taxonomy.md categories ENGINE_VERSION; do
+    if [[ -f "$src_meta/$f" ]]; then
+      cp "$src_meta/$f" "$BRAIN_VAULT/_meta/$f"
+      printf 'synapse: upgraded _meta/%s\n' "$f"
+    fi
+  done
+  for f in session-enforce.sh prompt-retrieve.sh stop-check.sh; do
+    if [[ -f "$src_meta/hooks/$f" ]]; then
+      cp "$src_meta/hooks/$f" "$BRAIN_VAULT/_meta/hooks/$f"
+      chmod +x "$BRAIN_VAULT/_meta/hooks/$f" 2>/dev/null || true
+      printf 'synapse: upgraded _meta/hooks/%s\n' "$f"
+    fi
+  done
+  # Starter skills (only if missing — don't clobber rated scorecards)
+  local sk
+  for sk in distill-after-work.md file-into-vault.md; do
+    if [[ -f "$templates/vault/skills/$sk" && ! -f "$BRAIN_VAULT/skills/$sk" ]]; then
+      mkdir -p "$BRAIN_VAULT/skills"
+      cp "$templates/vault/skills/$sk" "$BRAIN_VAULT/skills/$sk"
+      printf 'synapse: seeded skill %s\n' "$sk"
+    fi
+  done
+  chmod +x "$BRAIN_VAULT/_meta/"*.py 2>/dev/null || true
+  local ver=""
+  [[ -f "$BRAIN_VAULT/_meta/ENGINE_VERSION" ]] && ver="$(tr -d '[:space:]' < "$BRAIN_VAULT/_meta/ENGINE_VERSION")"
+  printf 'synapse: vault engine at %s (version %s)\n' "$BRAIN_VAULT" "${ver:-unknown}"
+}
+
+# Seed demo notes into an empty-ish vault so query has something to find.
+seed_cmd() {
+  local templates examples force=0
+  templates="$(resolve_templates)"
+  [[ "${1:-}" == "--force" ]] && force=1
+  if [[ -z "$templates" ]]; then
+    printf 'synapse: templates not found\n' >&2
+    return 2
+  fi
+  examples=""
+  if [[ -d "$templates/examples/distillation/after" ]]; then
+    examples="$templates/examples/distillation/after"
+  elif [[ -d "$templates/../examples/distillation/after" ]]; then
+    examples="$(cd "$templates/../examples/distillation/after" && pwd)"
+  elif [[ -d "$(cd "$SELF_DIR/.." && pwd)/examples/distillation/after" ]]; then
+    examples="$(cd "$SELF_DIR/.." && pwd)/examples/distillation/after"
+  fi
+  if [[ -z "$examples" || ! -d "$examples" ]]; then
+    printf 'synapse: seed examples not found\n' >&2
+    return 2
+  fi
+  # Count existing wiki pages (exclude skills starters / raw)
+  local n=0
+  local cat
+  for cat in concepts techniques projects sources analysis; do
+    [[ -d "$BRAIN_VAULT/$cat" ]] || continue
+    n=$((n + $(find "$BRAIN_VAULT/$cat" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l | tr -d ' ')))
+  done
+  if [[ "$force" -eq 0 && "$n" -ge 3 ]]; then
+    printf 'synapse: vault already has %s notes — skip seed (pass --force to add anyway)\n' "$n"
+    return 0
+  fi
+  mkdir -p "$BRAIN_VAULT/concepts"
+  local src stem dest
+  local seeded=0
+  for src in "$examples"/*.md; do
+    [[ -f "$src" ]] || continue
+    stem="$(basename "$src" .md)"
+    dest="$BRAIN_VAULT/concepts/$stem.md"
+    if [[ -f "$dest" ]]; then
+      printf 'synapse: seed exists, skip %s\n' "$stem"
+      continue
+    fi
+    cp "$src" "$dest"
+    # Register in index + log via wiki.py when possible
+    if [[ -f "$BRAIN_VAULT/_meta/wiki.py" ]] && command -v python3 >/dev/null 2>&1; then
+      # Page already exists — just ensure index/log via a tiny python snippet
+      python3 - <<PY
+import os, re, sys
+sys.path.insert(0, "$BRAIN_VAULT/_meta")
+import wiki
+stem = "$stem"
+summary = "Seed note from Synapse examples/distillation."
+text = open("$dest", encoding="utf-8").read()
+m = re.search(r"^summary:\\s*(.+)$", text, re.M)
+if m: summary = m.group(1).strip()
+tags = ["knowledge"]
+mt = re.search(r"^tags:\\s*\\[(.+)\\]", text, re.M)
+if mt: tags = [t.strip() for t in mt.group(1).split(",") if t.strip()]
+wiki.register_in_index(stem, summary, tags, "Concepts")
+wiki.append_log("SEED", stem, "concepts", None)
+PY
+    fi
+    printf 'synapse: seeded concepts/%s.md\n' "$stem"
+    seeded=$((seeded + 1))
+  done
+  if [[ "$seeded" -gt 0 ]]; then
+    # Surface one seed in hot.md
+    if [[ -f "$BRAIN_VAULT/hot.md" ]] && ! grep -q 'api-auth-bearer-header' "$BRAIN_VAULT/hot.md" 2>/dev/null; then
+      printf '\n- [[api-auth-bearer-header]] — seed: API auth via bearer header\n' >> "$BRAIN_VAULT/hot.md"
+    fi
+    printf 'synapse: seeded %s demo notes — try: %s query "bearer token auth"\n' "$seeded" "$CMD_NAME"
+  else
+    printf 'synapse: nothing new to seed\n'
+  fi
+}
+
+# One-shot: upgrade + setup targets + hooks + seed + doctor.
+onboard_cmd() {
+  local target="auto" do_seed=1 do_hooks=1 dest_dir="$PWD"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --target) target="${2:-auto}"; shift 2 ;;
+      --seed) do_seed=1; shift ;;
+      --no-seed) do_seed=0; shift ;;
+      --hooks) do_hooks=1; shift ;;
+      --no-hooks) do_hooks=0; shift ;;
+      --dir) dest_dir="${2:-$PWD}"; shift 2 ;;
+      -h|--help)
+        printf 'usage: %s onboard [--target auto|claude-code|cursor|both] [--seed|--no-seed] [--hooks|--no-hooks] [--dir DIR]\n' "$CMD_NAME"
+        return 0 ;;
+      *) printf 'synapse: unknown onboard flag: %s\n' "$1" >&2; return 2 ;;
+    esac
+  done
+
+  printf '== 1/5 upgrade engine ==\n'
+  upgrade_cmd || true
+
+  printf '\n== 2/5 setup agents ==\n'
+  local do_claude=0 do_cursor=0
+  case "$target" in
+    auto)
+      if command -v claude >/dev/null 2>&1 || [[ -d "$HOME/.claude" ]]; then do_claude=1; fi
+      if command -v cursor >/dev/null 2>&1 || [[ -d "$HOME/.cursor" ]] || [[ -d "$dest_dir/.cursor" ]]; then do_cursor=1; fi
+      # If nothing detected, still set up both so first-run works
+      if [[ "$do_claude" -eq 0 && "$do_cursor" -eq 0 ]]; then do_claude=1; do_cursor=1; fi
+      ;;
+    claude|claude-code) do_claude=1 ;;
+    cursor) do_cursor=1 ;;
+    both) do_claude=1; do_cursor=1 ;;
+    *) printf 'synapse: unknown --target %s\n' "$target" >&2; return 2 ;;
+  esac
+  [[ "$do_claude" -eq 1 ]] && setup_cmd claude-code "$dest_dir"
+  [[ "$do_cursor" -eq 1 ]] && setup_cmd cursor "$dest_dir"
+
+  printf '\n== 3/5 hooks ==\n'
+  if [[ "$do_hooks" -eq 1 && "$do_claude" -eq 1 ]]; then
+    hooks_cmd install || true
+  else
+    printf 'synapse: skip hooks\n'
+  fi
+
+  printf '\n== 4/5 seed ==\n'
+  if [[ "$do_seed" -eq 1 ]]; then
+    seed_cmd || true
+  else
+    printf 'synapse: skip seed\n'
+  fi
+
+  printf '\n== 5/5 doctor ==\n'
+  doctor || true
+  printf '\nsynapse: onboard complete. Try: %s query "bearer auth"\n' "$CMD_NAME"
+  # Critical failures only: vault + python3 + wiki engine
+  local rc=0
+  command -v python3 >/dev/null 2>&1 || rc=1
+  [[ -d "$BRAIN_VAULT" && -f "$BRAIN_VAULT/_meta/wiki.py" ]] || rc=1
+  return "$rc"
 }
 
 which_cmd() {
@@ -607,6 +966,20 @@ case "${1:-}" in
     ;;
   setup)
     setup_cmd "${2:-}" "${3:-$PWD}"
+    exit $?
+    ;;
+  upgrade)
+    upgrade_cmd
+    exit $?
+    ;;
+  seed)
+    shift
+    seed_cmd "$@"
+    exit $?
+    ;;
+  onboard)
+    shift
+    onboard_cmd "$@"
     exit $?
     ;;
   search)

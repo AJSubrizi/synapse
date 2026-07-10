@@ -211,13 +211,42 @@ def _tokens(text: str) -> set[str]:
 
 
 def cmd_suggest(query: str, limit: int = 5) -> int:
-    """Recommend skills for a context/query: relevance (title/tags/summary overlap)
-    nudged by reputation (score, uses). Pure ranking — picks among existing skills."""
+    """Recommend skills for a context/query.
+
+    Prefer the vault retrieval layer (BM25/hybrid via search.cmd_query / cmd_search)
+    restricted to skills/, then fall back to token overlap + reputation.
+    """
     q = _tokens(query)
-    if not q:
+    if not q and not query.strip():
         print("usage: skill.py suggest <context words>", file=sys.stderr)
         return 2
+
+    # Retrieval-backed path (same engine as `synapse query`).
+    ranked_names: list[str] = []
+    try:
+        sys.path.insert(0, HERE)
+        import search  # type: ignore
+        buf_lines: list[str] = []
+        import contextlib
+        import io
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            if os.path.isfile(getattr(search, "INDEX", "")):
+                search.cmd_query(query, limit * 3)
+            else:
+                search.cmd_search(query, limit * 3, True)
+        for line in out.getvalue().splitlines():
+            # lines look like: "  1.234  skills/foo.md" or "  12.0  skills/foo.md  ..."
+            m = re.search(r"(skills/[^\s]+\.md)", line)
+            if m:
+                stem = os.path.splitext(os.path.basename(m.group(1)))[0]
+                if stem not in ranked_names:
+                    ranked_names.append(stem)
+    except Exception:
+        ranked_names = []
+
     rows = []
+    by_name = {}
     for p in all_skills():
         fm, _ = split_fm(open(p, encoding="utf-8").read())
         if not fm:
@@ -225,13 +254,24 @@ def cmd_suggest(query: str, limit: int = 5) -> int:
         name = get(fm, "title") or os.path.splitext(os.path.basename(p))[0]
         hay = _tokens(" ".join(filter(None, [
             get(fm, "title"), get(fm, "tags"), get(fm, "summary")])))
-        overlap = len(q & hay)
-        if not overlap:
-            continue
+        overlap = len(q & hay) if q else 0
         c = card(fm)
-        rank = overlap + 0.1 * c["score"] + 0.01 * c["uses"]
-        rows.append((rank, overlap, c["score"], int(c["uses"]), name,
-                     get(fm, "summary") or ""))
+        by_name[name] = (overlap, c, get(fm, "summary") or "")
+
+    if ranked_names:
+        for i, name in enumerate(ranked_names):
+            if name not in by_name:
+                continue
+            overlap, c, summary = by_name[name]
+            rank = 100 - i + 0.1 * c["score"] + 0.01 * c["uses"]
+            rows.append((rank, max(overlap, 1), c["score"], int(c["uses"]), name, summary))
+    else:
+        for name, (overlap, c, summary) in by_name.items():
+            if not overlap:
+                continue
+            rank = overlap + 0.1 * c["score"] + 0.01 * c["uses"]
+            rows.append((rank, overlap, c["score"], int(c["uses"]), name, summary))
+
     rows.sort(reverse=True)
     if not rows:
         print(f"no skill matches: {query}")

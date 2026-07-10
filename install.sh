@@ -33,6 +33,14 @@ copy_if_missing() {
   fi
 }
 
+# Engine files are always refreshed from the repo (vault content is never touched).
+sync_engine() {
+  local src="$1"
+  local dst="$2"
+  mkdir -p "$(dirname "$dst")"
+  cp "$src" "$dst"
+}
+
 cp "$REPO_DIR/bin/synapse" "$PREFIX/synapse"
 chmod +x "$PREFIX/synapse"
 ln -sf synapse "$PREFIX/brain"
@@ -58,19 +66,21 @@ copy_if_missing "$REPO_DIR/templates/vault/AGENTS.md" "$BRAIN_VAULT/AGENTS.md"
 copy_if_missing "$REPO_DIR/templates/vault/index.md" "$BRAIN_VAULT/index.md"
 copy_if_missing "$REPO_DIR/templates/vault/hot.md" "$BRAIN_VAULT/hot.md"
 copy_if_missing "$REPO_DIR/templates/vault/log.md" "$BRAIN_VAULT/log.md"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/workflow.md" "$BRAIN_VAULT/_meta/workflow.md"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/taxonomy.md" "$BRAIN_VAULT/_meta/taxonomy.md"
+# Schema docs: refresh workflow/taxonomy from repo; keep user categories if present
+sync_engine "$REPO_DIR/templates/vault/_meta/workflow.md" "$BRAIN_VAULT/_meta/workflow.md"
+sync_engine "$REPO_DIR/templates/vault/_meta/taxonomy.md" "$BRAIN_VAULT/_meta/taxonomy.md"
 copy_if_missing "$REPO_DIR/templates/vault/_meta/categories" "$BRAIN_VAULT/_meta/categories"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/vault_config.py" "$BRAIN_VAULT/_meta/vault_config.py"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/validate.py" "$BRAIN_VAULT/_meta/validate.py"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/dedup.py" "$BRAIN_VAULT/_meta/dedup.py"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/skill.py" "$BRAIN_VAULT/_meta/skill.py"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/search.py" "$BRAIN_VAULT/_meta/search.py"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/wiki.py" "$BRAIN_VAULT/_meta/wiki.py"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/metrics.py" "$BRAIN_VAULT/_meta/metrics.py"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/stop-check.sh"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/session-enforce.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh"
-copy_if_missing "$REPO_DIR/templates/vault/_meta/hooks/prompt-retrieve.sh" "$BRAIN_VAULT/_meta/hooks/prompt-retrieve.sh"
+sync_engine "$REPO_DIR/templates/vault/_meta/vault_config.py" "$BRAIN_VAULT/_meta/vault_config.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/validate.py" "$BRAIN_VAULT/_meta/validate.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/dedup.py" "$BRAIN_VAULT/_meta/dedup.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/skill.py" "$BRAIN_VAULT/_meta/skill.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/search.py" "$BRAIN_VAULT/_meta/search.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/wiki.py" "$BRAIN_VAULT/_meta/wiki.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/metrics.py" "$BRAIN_VAULT/_meta/metrics.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/ENGINE_VERSION" "$BRAIN_VAULT/_meta/ENGINE_VERSION"
+sync_engine "$REPO_DIR/templates/vault/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/stop-check.sh"
+sync_engine "$REPO_DIR/templates/vault/_meta/hooks/session-enforce.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh"
+sync_engine "$REPO_DIR/templates/vault/_meta/hooks/prompt-retrieve.sh" "$BRAIN_VAULT/_meta/hooks/prompt-retrieve.sh"
 copy_if_missing "$REPO_DIR/templates/vault/concepts/workflow.md" "$BRAIN_VAULT/concepts/workflow.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/distill-after-work.md" "$BRAIN_VAULT/skills/distill-after-work.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/file-into-vault.md" "$BRAIN_VAULT/skills/file-into-vault.md"
@@ -84,12 +94,30 @@ copy_if_missing "$REPO_DIR/templates/AGENTS.md" "$HOME/AGENTS.md"
 copy_if_missing "$REPO_DIR/templates/CLAUDE.md" "$HOME/CLAUDE.md"
 copy_if_missing "$REPO_DIR/templates/GEMINI.md" "$HOME/GEMINI.md"
 
-# Stash the context-file templates so `synapse setup <target>` works post-install
+# Stash templates so `synapse setup` / `upgrade` / `onboard` work post-install
 # (the installed CLI has no repo checkout beside it).
-mkdir -p "$BRAIN_ROOT/templates"
-copy_if_missing "$REPO_DIR/templates/AGENTS.md" "$BRAIN_ROOT/templates/AGENTS.md"
-copy_if_missing "$REPO_DIR/templates/CLAUDE.md" "$BRAIN_ROOT/templates/CLAUDE.md"
-copy_if_missing "$REPO_DIR/templates/GEMINI.md" "$BRAIN_ROOT/templates/GEMINI.md"
+mkdir -p "$BRAIN_ROOT/templates/vault/_meta/hooks" "$BRAIN_ROOT/templates/cursor" \
+         "$BRAIN_ROOT/templates/vault/skills" \
+         "$BRAIN_ROOT/templates/examples/distillation/after"
+sync_engine "$REPO_DIR/templates/AGENTS.md" "$BRAIN_ROOT/templates/AGENTS.md"
+sync_engine "$REPO_DIR/templates/CLAUDE.md" "$BRAIN_ROOT/templates/CLAUDE.md"
+sync_engine "$REPO_DIR/templates/GEMINI.md" "$BRAIN_ROOT/templates/GEMINI.md"
+sync_engine "$REPO_DIR/templates/cursor/synapse.mdc" "$BRAIN_ROOT/templates/cursor/synapse.mdc"
+# Full engine tree for upgrade_cmd
+for f in validate.py dedup.py skill.py search.py wiki.py metrics.py vault_config.py \
+         workflow.md taxonomy.md categories ENGINE_VERSION; do
+  sync_engine "$REPO_DIR/templates/vault/_meta/$f" "$BRAIN_ROOT/templates/vault/_meta/$f"
+done
+for f in session-enforce.sh prompt-retrieve.sh stop-check.sh; do
+  sync_engine "$REPO_DIR/templates/vault/_meta/hooks/$f" "$BRAIN_ROOT/templates/vault/_meta/hooks/$f"
+done
+for f in distill-after-work.md file-into-vault.md; do
+  copy_if_missing "$REPO_DIR/templates/vault/skills/$f" "$BRAIN_ROOT/templates/vault/skills/$f"
+done
+# Seed examples for onboard
+if [ -d "$REPO_DIR/examples/distillation/after" ]; then
+  cp -R "$REPO_DIR/examples/distillation/after/." "$BRAIN_ROOT/templates/examples/distillation/after/"
+fi
 
 BRAIN_ROOT="$BRAIN_ROOT" BRAIN_VAULT="$BRAIN_VAULT" SHELL_RC="$SHELL_RC" \
   "$PREFIX/synapse" reinit >/dev/null
@@ -109,4 +137,5 @@ fi
 
 echo
 echo "Open a new terminal, then run:"
-echo "  synapse doctor"
+echo "  synapse onboard          # setup Claude + Cursor, hooks, seed demo notes, doctor"
+echo "  # or: synapse doctor"

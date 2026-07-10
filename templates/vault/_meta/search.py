@@ -92,6 +92,46 @@ def tokenize(text: str) -> list[str]:
     return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
 
 
+def vault_fingerprint() -> str:
+    """Stable hash of wiki note paths + mtimes + sizes — detects index staleness."""
+    h = hashlib.sha256()
+    for path, rel in iter_notes():
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        h.update(rel.encode())
+        h.update(str(int(st.st_mtime)).encode())
+        h.update(str(st.st_size).encode())
+    return h.hexdigest()[:16]
+
+
+def cmd_stale() -> int:
+    """Report whether retrieval.json matches the current vault. Exit 1 if stale."""
+    if not os.path.isfile(INDEX):
+        print("index: none (run `synapse index`)")
+        return 0
+    try:
+        index = json.load(open(INDEX, encoding="utf-8"))
+    except Exception as exc:
+        print(f"index: unreadable ({exc})")
+        return 1
+    fp = vault_fingerprint()
+    stored = index.get("vault_fp") or ""
+    backend = index.get("backend", "?")
+    n = _doc_count(index)
+    if not stored:
+        print(f"index: present (backend={backend}, {n} notes) — no fingerprint "
+              f"(rebuild with `synapse index` to enable staleness checks)")
+        return 0
+    if stored == fp:
+        print(f"index: fresh (backend={backend}, {n} notes, fp={fp})")
+        return 0
+    print(f"index: STALE (backend={backend}, {n} notes, "
+          f"index_fp={stored} vault_fp={fp}) — run `synapse index`")
+    return 1
+
+
 # ---------------------------------------------------------------- search (lexical)
 
 def cmd_search(query: str, limit: int, include_body: bool,
@@ -437,11 +477,13 @@ def cmd_index(backend: str) -> int:
         index = build_hybrid_index()
     if index is None:
         index = build_tfidf_index() if backend == "tfidf" else build_bm25_index()
+    index["vault_fp"] = vault_fingerprint()
     json.dump(index, open(INDEX, "w", encoding="utf-8"))
     stats = index.get("_stats") or index.get("embeddings", {}).get("_stats")
     extra = f", reused {stats['reused']} / encoded {stats['encoded']}" if stats else ""
     print(f"wrote {os.path.relpath(INDEX, VAULT)} "
-          f"(backend={index['backend']}, {_doc_count(index)} notes{extra})")
+          f"(backend={index['backend']}, {_doc_count(index)} notes, "
+          f"fp={index['vault_fp']}{extra})")
     return 0
 
 
@@ -589,6 +631,8 @@ def main() -> int:
     p.add_argument("query", nargs="+")
     p.add_argument("--limit", type=int, default=10)
 
+    sub.add_parser("stale", help="check whether retrieval.json matches the vault")
+
     args = ap.parse_args()
     if args.cmd == "search":
         q = " ".join(args.query)
@@ -606,6 +650,8 @@ def main() -> int:
         return cmd_index(args.backend)
     if args.cmd == "query":
         return cmd_query(" ".join(args.query), args.limit)
+    if args.cmd == "stale":
+        return cmd_stale()
     ap.print_help()
     return 0
 

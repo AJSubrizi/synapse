@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- **Adoption engine (`synapse onboard`)** — one command: upgrade vault engine → setup
+  Claude Code + Cursor → install Claude hooks → seed demo notes from
+  `examples/distillation/after/` → rich `doctor`. Flags: `--target`, `--no-seed`,
+  `--no-hooks`, `--dir`.
+- **`synapse setup cursor` fixed** — writes `.cursor/rules/synapse.mdc` (`alwaysApply`)
+  instead of a generic `AGENTS.md` (matches `docs/CUSTOM-LAYOUT.md`). Bare
+  `synapse setup` lists configured targets.
+- **`synapse upgrade`** — always syncs `_meta` engine files + hooks from templates;
+  stamps `ENGINE_VERSION` (0.5.0). `install.sh` now refreshes engines on every install
+  (no more silent `copy_if_missing` drift) and stashes full templates for post-install
+  upgrade/onboard/seed.
+- **Rich `doctor`** — boot files, python3/jq, engine files + version drift, Claude hooks,
+  Cursor rule, retrieval index freshness.
+- **Index staleness** — `retrieval.json` stores `vault_fp`; `search.py stale` and
+  `lint --strict` surface STALE indexes.
+- **Hook/query ranker aligned** — `prompt-retrieve.sh` uses `cmd_query` when an index
+  exists (same backend as `synapse query`), else lexical search. English systemMessage.
+- **`synapse file update <stem>`** / `wiki.py update` — refresh summary/tags/links and
+  bump `updated` without orphaning the page.
+- **`skill suggest` retrieval-backed** — prefers BM25/hybrid hits under `skills/`, falls
+  back to token overlap.
+- **Distillation loop in workflow** — Phase 2 requires search-before-create and
+  `lint --strict` → fix → recheck; `--strict` also fails on dedup candidates + stale index.
+- **Tests:** `tests/test_cli_onboard.py`.
+
 - **Installer fixed** — `install.sh` was stale: it created the old category dirs and never
   copied the new engine files, so topping up an existing vault left it without
   `wiki.py` / `vault_config.py` / `metrics.py` / `categories` / `prompt-retrieve.sh`. It now

@@ -156,6 +156,73 @@ def cmd_new(args: argparse.Namespace) -> int:
     return 0
 
 
+def find_page(stem: str) -> str | None:
+    for cat in CATEGORIES:
+        path = os.path.join(VAULT, cat, f"{stem}.md")
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def split_fm(text: str) -> tuple[list[str], str]:
+    if not text.startswith("---"):
+        return [], text
+    end = text.find("\n---", 3)
+    if end == -1:
+        return [], text
+    return text[3:end].lstrip("\n").splitlines(), text[end + 4:]
+
+
+def set_fm_keys(fm: list[str], updates: dict[str, str]) -> list[str]:
+    seen: set[str] = set()
+    out = list(fm)
+    for i, line in enumerate(out):
+        m = re.match(r"(\w+)\s*:", line)
+        if m and m.group(1) in updates:
+            out[i] = f"{m.group(1)}: {updates[m.group(1)]}"
+            seen.add(m.group(1))
+    for k, v in updates.items():
+        if k not in seen:
+            out.append(f"{k}: {v}")
+    return out
+
+
+def cmd_update(args: argparse.Namespace) -> int:
+    """Refresh summary/tags/links on an existing page; bump updated; log UPDATE."""
+    stem = slugify(args.title) if args.title else (args.stem or "")
+    if args.stem:
+        stem = args.stem
+    if not stem:
+        print("wiki: update requires --stem or --title", file=sys.stderr)
+        return 2
+    path = find_page(stem)
+    if not path:
+        print(f"wiki: page not found: {stem}.md", file=sys.stderr)
+        return 1
+    text = open(path, encoding="utf-8").read()
+    fm, rest = split_fm(text)
+    if not fm:
+        print(f"wiki: no frontmatter on {stem}.md", file=sys.stderr)
+        return 1
+    updates: dict[str, str] = {"updated": now_iso()}
+    if args.summary:
+        updates["summary"] = args.summary[:240]
+    if args.tags:
+        tags = [t.strip().lower() for t in args.tags.split(",") if t.strip()]
+        updates["tags"] = "[" + ", ".join(tags) + "]"
+    fm = set_fm_keys(fm, updates)
+    if args.link and f"[[{args.link}]]" not in rest:
+        if "## Related" in rest:
+            rest = rest.rstrip() + f"\n- [[{args.link}]]\n"
+        else:
+            rest = rest.rstrip() + f"\n\n## Related\n\n- [[{args.link}]]\n"
+    open(path, "w", encoding="utf-8").write("---\n" + "\n".join(fm) + "\n---\n" + rest)
+    cat = os.path.basename(os.path.dirname(path))
+    append_log("UPDATE", stem, cat, None)
+    print(os.path.relpath(path, VAULT))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Deterministic wiki mutations.")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -167,11 +234,20 @@ def main() -> int:
     p.add_argument("--source", default="")
     p.add_argument("--link", default="")
     p.add_argument("--op", default="FILE", help="log verb (INGEST, FILE, ...)")
+    u = sub.add_parser("update", help="refresh an existing page (summary/tags/link/updated)")
+    u.add_argument("--stem", default="", help="page stem (filename without .md)")
+    u.add_argument("--title", default="", help="title to slugify if --stem omitted")
+    u.add_argument("--summary", default="")
+    u.add_argument("--tags", default="")
+    u.add_argument("--link", default="")
     args = ap.parse_args()
-    args.source = args.source or None
-    args.link = args.link or None
     if args.cmd == "new":
+        args.source = args.source or None
+        args.link = args.link or None
         return cmd_new(args)
+    if args.cmd == "update":
+        args.link = args.link or None
+        return cmd_update(args)
     return 2
 
 
