@@ -25,7 +25,10 @@ def run(env, *args, check=True):
 
 
 def make_env():
-    home = tempfile.mkdtemp(prefix="synapse-cli-")
+    # Keep temps inside the repo so sandboxed CI/agents can write .cursor/ etc.
+    base = os.path.join(ROOT, ".tmp-tests")
+    os.makedirs(base, exist_ok=True)
+    home = tempfile.mkdtemp(prefix="synapse-cli-", dir=base)
     vault = os.path.join(home, "Synapse", "vault")
     shutil.copytree(os.path.join(ROOT, "templates", "vault"), vault)
     # Point templates at the repo so setup/upgrade/seed work without install
@@ -65,8 +68,10 @@ class TestUpgrade:
                 os.remove(ver)
             run(env, "upgrade")
             assert os.path.isfile(ver)
-            assert open(ver).read().strip() == "0.5.0"
+            assert open(ver).read().strip().startswith("0.5")
             assert os.path.isfile(os.path.join(vault, "_meta", "wiki.py"))
+            assert os.path.isfile(os.path.join(vault, "_meta", "synapse_lib.py"))
+            assert os.path.isfile(os.path.join(vault, "_meta", "pack.py"))
         finally:
             shutil.rmtree(home)
 

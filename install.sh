@@ -105,9 +105,12 @@ sync_engine "$REPO_DIR/templates/GEMINI.md" "$BRAIN_ROOT/templates/GEMINI.md"
 sync_engine "$REPO_DIR/templates/cursor/synapse.mdc" "$BRAIN_ROOT/templates/cursor/synapse.mdc"
 # Full engine tree for upgrade_cmd
 for f in validate.py dedup.py skill.py search.py wiki.py metrics.py vault_config.py \
+         synapse_lib.py pack.py \
          workflow.md taxonomy.md categories ENGINE_VERSION; do
   sync_engine "$REPO_DIR/templates/vault/_meta/$f" "$BRAIN_ROOT/templates/vault/_meta/$f"
 done
+sync_engine "$REPO_DIR/templates/vault/_meta/synapse_lib.py" "$BRAIN_VAULT/_meta/synapse_lib.py"
+sync_engine "$REPO_DIR/templates/vault/_meta/pack.py" "$BRAIN_VAULT/_meta/pack.py"
 for f in session-enforce.sh prompt-retrieve.sh stop-check.sh; do
   sync_engine "$REPO_DIR/templates/vault/_meta/hooks/$f" "$BRAIN_ROOT/templates/vault/_meta/hooks/$f"
 done

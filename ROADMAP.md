@@ -20,13 +20,13 @@
 
 | # | Theme | Why | Effort |
 |---|---|---|---|
-| 1 | Demo GIF/asciinema from `demo.sh` | Adoption: felt memory in <2 min | Low |
+| 1 | Demo GIF/asciinema from `demo.sh` | Recorder ready (`scripts/record-demo.sh`); GIF asset optional | Low |
 | 2 | Codex / OpenCode / Gemini hook parity | Loop reliability beyond Claude+Cursor rules | Med (blocked on each CLI's hook surface) |
-| 3 | Shared `_meta/synapse_lib.py` | One frontmatter/parser; cut 6× drift | Med |
-| 4 | Generated catalog section (keep human `index.md` hubs) | Catalog integrity at scale | Med |
-| 5 | Eval gates in CI (nDCG / answer floors) | Retrieval regressions become measurable | Med |
-| 6 | Memory packs (`synapse ingest --pack`) | Shareable file-based knowledge modules | High |
-| 7 | Multi-vault `query --all` (RRF) | Work/personal vaults without monorepo | Med |
+| 3 | Shared `_meta/synapse_lib.py` | **Done** (0.5.1) | — |
+| 4 | Generated catalog section (keep human `index.md` hubs) | **Done** (`_meta/catalog.md`) | — |
+| 5 | Eval gates in CI (nDCG / answer floors) | **Done** (fixture floors) | — |
+| 6 | Memory packs (`synapse pack export|import`) | **Done** (MVP tar.gz) | — |
+| 7 | Multi-vault `query --all` (RRF) | **Done** | — |
 
 ## Do not do
 

@@ -74,9 +74,11 @@ Usage:
   Wiki operations (Karpathy: ingest -> query -> lint):
   $CMD_NAME ingest <src>     record a source under raw/, create a linked sources/ page, log it
   $CMD_NAME query <query>    ranked retrieval (lexical, or semantic via the built index)
+  $CMD_NAME query --all <q>  fuse ranked results across named vaults (RRF)
   $CMD_NAME file <cat> <ttl> file knowledge back as a wiki page (index + log) — compounds query
   $CMD_NAME lint [--strict]  health-check the wiki: validate + dedup + skill deps (= check)
   $CMD_NAME metrics          loop metrics: size, growth, activity, retrieval, stall signal
+  $CMD_NAME pack export|import   shareable memory packs (tar.gz of wiki subtrees)
 
   $CMD_NAME search [opts]    filter notes by query, tag, or title (grep-based lookup)
   $CMD_NAME digest           (re)write _meta/digest.md — a compact map of the vault
@@ -283,6 +285,8 @@ check() {
     python3 "$BRAIN_VAULT/_meta/search.py" stale || {
       if [[ "$strict" -eq 1 ]]; then rc=1; fi
     }
+    printf '\n== catalog refresh ==\n'
+    python3 "$BRAIN_VAULT/_meta/search.py" digest --write || true
   fi
   return "$rc"
 }
@@ -642,6 +646,7 @@ upgrade_cmd() {
   mkdir -p "$BRAIN_VAULT/_meta/hooks"
   local f
   for f in validate.py dedup.py skill.py search.py wiki.py metrics.py vault_config.py \
+           synapse_lib.py pack.py \
            workflow.md taxonomy.md categories ENGINE_VERSION; do
     if [[ -f "$src_meta/$f" ]]; then
       cp "$src_meta/$f" "$BRAIN_VAULT/_meta/$f"
@@ -963,6 +968,19 @@ case "${1:-}" in
     else
       search_cmd "$@"
     fi
+    ;;
+  pack)
+    shift
+    p="$BRAIN_VAULT/_meta/pack.py"
+    if [[ ! -f "$p" ]]; then
+      printf 'synapse: pack engine not found at %s (run: %s upgrade)\n' "$p" "$CMD_NAME" >&2
+      exit 2
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+      printf 'synapse: python3 not found; cannot run pack\n' >&2
+      exit 2
+    fi
+    exec python3 "$p" "$@"
     ;;
   setup)
     setup_cmd "${2:-}" "${3:-$PWD}"

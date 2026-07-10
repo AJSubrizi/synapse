@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Shared `synapse_lib.py`** — common frontmatter/tokenize/iter_notes for engines.
+- **Auto catalog** — `lint`/`digest --write` regenerates `_meta/catalog.md` (index.md stays human).
+- **`synapse query --all`** — RRF fusion across named vaults (`SYNAPSE_QUERY_VAULTS` or `vaults/`).
+- **Memory packs** — `synapse pack export|import` (tar.gz of wiki subtrees + raw provenance).
+- **CI eval floors** — fixture nDCG@10 gates via `scripts/check_eval_floors.py`.
+- **Demo recorder** — `scripts/record-demo.sh` + `docs/demo.tape` (vhs/asciinema).
+- Engine **0.5.1**.
+
 - **Adoption engine (`synapse onboard`)** — one command: upgrade vault engine → setup
   Claude Code + Cursor → install Claude hooks → seed demo notes from
   `examples/distillation/after/` → rich `doctor`. Flags: `--target`, `--no-seed`,

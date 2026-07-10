@@ -114,6 +114,7 @@ synapse lint [--strict] # health-check the wiki (alias: check); --git-staleness 
 synapse metrics         # loop metrics: size, growth, activity, retrieval, stall signal
 synapse onboard         # one-shot: upgrade + setup + hooks + seed + doctor
 synapse upgrade         # sync vault engine files from installed templates
+synapse pack export|import  # shareable memory packs (tar.gz wiki subtrees)
 synapse hooks install   # wire the continuous-loop hooks (Claude Code)
 synapse setup TARGET    # write the agent context file (claude-code|codex|cursor|gemini|opencode)
 synapse <cli>           # run an agent (claude|codex|gemini|opencode) with the vault loaded
@@ -126,6 +127,7 @@ synapse status | doctor | env | digest | index | reinit
 
 `synapse setup cursor` writes `.cursor/rules/synapse.mdc` (always-on continuous loop).
 `synapse setup` with no args lists which targets are already configured.
+`synapse query --all "<q>"` fuses ranked hits across named vaults.
 
 ## Retrieval & benchmarks
 

@@ -48,29 +48,42 @@ try:  # single source of truth (_meta/vault_config.py), with a test-time fallbac
 except Exception:
     CONTENT_DIRS = ("concepts", "techniques", "projects", "skills", "sources", "analysis", "people", "organizations", "journal")
 DIGEST = os.path.join(META, "digest.md")
+CATALOG = os.path.join(META, "catalog.md")
 INDEX = os.path.join(META, "retrieval.json")
-STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
-    "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
-    "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
-}
 
+try:
+    from synapse_lib import STOPWORDS, split_frontmatter, tokenize, iter_notes as _lib_iter_notes
+except Exception:
+    STOPWORDS = {
+        "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
+        "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
+        "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
+    }
 
-def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    if not text.startswith("---"):
-        return {}, text
-    end = text.find("\n---", 3)
-    if end == -1:
-        return {}, text
-    fm: dict[str, str] = {}
-    for line in text[3:end].splitlines():
-        if ":" in line and not line.startswith(" "):
-            key, _, value = line.partition(":")
-            fm[key.strip()] = value.strip()
-    return fm, text[end + 4:]
+    def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
+        if not text.startswith("---"):
+            return {}, text
+        end = text.find("\n---", 3)
+        if end == -1:
+            return {}, text
+        fm: dict[str, str] = {}
+        for line in text[3:end].splitlines():
+            if ":" in line and not line.startswith(" "):
+                key, _, value = line.partition(":")
+                fm[key.strip()] = value.strip()
+        return fm, text[end + 4:]
+
+    def tokenize(text: str) -> list[str]:
+        words = re.findall(r"[a-z0-9]+", text.lower())
+        return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
+
+    _lib_iter_notes = None
 
 
 def iter_notes():
+    if _lib_iter_notes is not None:
+        yield from _lib_iter_notes(VAULT, CONTENT_DIRS)
+        return
     for path in sorted(glob.glob(os.path.join(VAULT, "**", "*.md"), recursive=True)):
         if "/_meta/" in path:
             continue
@@ -85,11 +98,6 @@ def strip_markup(text: str) -> str:
     text = re.sub(r"`[^`]*`", " ", text)
     text = re.sub(r"\[\[[^\]]*\]\]", " ", text)
     return text
-
-
-def tokenize(text: str) -> list[str]:
-    words = re.findall(r"[a-z0-9]+", text.lower())
-    return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
 
 
 def vault_fingerprint() -> str:
@@ -234,10 +242,54 @@ def cmd_digest(write: bool) -> int:
     content = build_digest()
     if write:
         open(DIGEST, "w", encoding="utf-8").write(content)
+        # Machine catalog: same map, kept under _meta so index.md stays human-owned.
+        open(CATALOG, "w", encoding="utf-8").write(
+            content.replace("# Digest", "# Catalog (auto-generated)", 1)
+        )
         n = content.count("\n- ")
-        print(f"wrote {os.path.relpath(DIGEST, VAULT)} ({n} notes)")
+        print(f"wrote {os.path.relpath(DIGEST, VAULT)} + "
+              f"{os.path.relpath(CATALOG, VAULT)} ({n} notes)")
     else:
         sys.stdout.write(content)
+    return 0
+
+
+def cmd_query_all(query: str, limit: int, vault_paths: list[str]) -> int:
+    """Query multiple vaults and fuse rankings with reciprocal rank fusion."""
+    if not vault_paths:
+        return cmd_query(query, limit)
+    # Collect per-vault ranked rels (prefixed with vault basename for disambiguation)
+    lists: list[list[str]] = []
+    labels: list[str] = []
+    for vpath in vault_paths:
+        if not os.path.isdir(vpath):
+            continue
+        labels.append(os.path.basename(vpath.rstrip("/")) or vpath)
+        # Run query in-process by temporarily swapping VAULT/INDEX globals is fragile;
+        # spawn a subprocess against that vault's search.py instead.
+        sp = os.path.join(vpath, "_meta", "search.py")
+        if not os.path.isfile(sp):
+            continue
+        try:
+            out = subprocess.check_output(
+                [sys.executable, sp, "query", query, "--limit", str(limit * 2)],
+                stderr=subprocess.DEVNULL, text=True, timeout=60,
+            )
+        except Exception:
+            continue
+        ranked = []
+        for line in out.splitlines():
+            m = re.search(r"(\S+\.md)\s*$", line.strip())
+            if m:
+                ranked.append(f"{labels[-1]}:{m.group(1)}")
+        if ranked:
+            lists.append(ranked)
+    if not lists:
+        print(f"no matches for: {query}")
+        return 0
+    fused = _rrf(lists)
+    for s, key in fused[:limit]:
+        print(f"  {s:5.3f}  {key}")
     return 0
 
 
@@ -630,6 +682,8 @@ def main() -> int:
     p = sub.add_parser("query")
     p.add_argument("query", nargs="+")
     p.add_argument("--limit", type=int, default=10)
+    p.add_argument("--all", action="store_true",
+                   help="fuse results across SYNAPSE_QUERY_VAULTS (colon-separated)")
 
     sub.add_parser("stale", help="check whether retrieval.json matches the vault")
 
@@ -649,7 +703,22 @@ def main() -> int:
     if args.cmd == "index":
         return cmd_index(args.backend)
     if args.cmd == "query":
-        return cmd_query(" ".join(args.query), args.limit)
+        q = " ".join(args.query)
+        if args.all:
+            raw = os.environ.get("SYNAPSE_QUERY_VAULTS", "")
+            paths = [p for p in raw.split(":") if p.strip()]
+            if not paths:
+                # default: active vault + every named vault under ../vaults
+                root = os.path.dirname(VAULT)
+                paths = [VAULT]
+                vdir = os.path.join(root, "vaults")
+                if os.path.isdir(vdir):
+                    paths.extend(
+                        os.path.join(vdir, n) for n in sorted(os.listdir(vdir))
+                        if os.path.isdir(os.path.join(vdir, n))
+                    )
+            return cmd_query_all(q, args.limit, paths)
+        return cmd_query(q, args.limit)
     if args.cmd == "stale":
         return cmd_stale()
     ap.print_help()
