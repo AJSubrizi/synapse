@@ -48,29 +48,42 @@ try:  # single source of truth (_meta/vault_config.py), with a test-time fallbac
 except Exception:
     CONTENT_DIRS = ("concepts", "techniques", "projects", "skills", "sources", "analysis", "people", "organizations", "journal")
 DIGEST = os.path.join(META, "digest.md")
+CATALOG = os.path.join(META, "catalog.md")
 INDEX = os.path.join(META, "retrieval.json")
-STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
-    "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
-    "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
-}
 
+try:
+    from synapse_lib import STOPWORDS, split_frontmatter, tokenize, iter_notes as _lib_iter_notes
+except Exception:
+    STOPWORDS = {
+        "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
+        "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
+        "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
+    }
 
-def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    if not text.startswith("---"):
-        return {}, text
-    end = text.find("\n---", 3)
-    if end == -1:
-        return {}, text
-    fm: dict[str, str] = {}
-    for line in text[3:end].splitlines():
-        if ":" in line and not line.startswith(" "):
-            key, _, value = line.partition(":")
-            fm[key.strip()] = value.strip()
-    return fm, text[end + 4:]
+    def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
+        if not text.startswith("---"):
+            return {}, text
+        end = text.find("\n---", 3)
+        if end == -1:
+            return {}, text
+        fm: dict[str, str] = {}
+        for line in text[3:end].splitlines():
+            if ":" in line and not line.startswith(" "):
+                key, _, value = line.partition(":")
+                fm[key.strip()] = value.strip()
+        return fm, text[end + 4:]
+
+    def tokenize(text: str) -> list[str]:
+        words = re.findall(r"[a-z0-9]+", text.lower())
+        return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
+
+    _lib_iter_notes = None
 
 
 def iter_notes():
+    if _lib_iter_notes is not None:
+        yield from _lib_iter_notes(VAULT, CONTENT_DIRS)
+        return
     for path in sorted(glob.glob(os.path.join(VAULT, "**", "*.md"), recursive=True)):
         if "/_meta/" in path:
             continue
@@ -87,9 +100,44 @@ def strip_markup(text: str) -> str:
     return text
 
 
-def tokenize(text: str) -> list[str]:
-    words = re.findall(r"[a-z0-9]+", text.lower())
-    return [w for w in words if len(w) >= 3 and w not in STOPWORDS]
+def vault_fingerprint() -> str:
+    """Stable hash of wiki note paths + mtimes + sizes — detects index staleness."""
+    h = hashlib.sha256()
+    for path, rel in iter_notes():
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue
+        h.update(rel.encode())
+        h.update(str(int(st.st_mtime)).encode())
+        h.update(str(st.st_size).encode())
+    return h.hexdigest()[:16]
+
+
+def cmd_stale() -> int:
+    """Report whether retrieval.json matches the current vault. Exit 1 if stale."""
+    if not os.path.isfile(INDEX):
+        print("index: none (run `synapse index`)")
+        return 0
+    try:
+        index = json.load(open(INDEX, encoding="utf-8"))
+    except Exception as exc:
+        print(f"index: unreadable ({exc})")
+        return 1
+    fp = vault_fingerprint()
+    stored = index.get("vault_fp") or ""
+    backend = index.get("backend", "?")
+    n = _doc_count(index)
+    if not stored:
+        print(f"index: present (backend={backend}, {n} notes) — no fingerprint "
+              f"(rebuild with `synapse index` to enable staleness checks)")
+        return 0
+    if stored == fp:
+        print(f"index: fresh (backend={backend}, {n} notes, fp={fp})")
+        return 0
+    print(f"index: STALE (backend={backend}, {n} notes, "
+          f"index_fp={stored} vault_fp={fp}) — run `synapse index`")
+    return 1
 
 
 # ---------------------------------------------------------------- search (lexical)
@@ -194,10 +242,54 @@ def cmd_digest(write: bool) -> int:
     content = build_digest()
     if write:
         open(DIGEST, "w", encoding="utf-8").write(content)
+        # Machine catalog: same map, kept under _meta so index.md stays human-owned.
+        open(CATALOG, "w", encoding="utf-8").write(
+            content.replace("# Digest", "# Catalog (auto-generated)", 1)
+        )
         n = content.count("\n- ")
-        print(f"wrote {os.path.relpath(DIGEST, VAULT)} ({n} notes)")
+        print(f"wrote {os.path.relpath(DIGEST, VAULT)} + "
+              f"{os.path.relpath(CATALOG, VAULT)} ({n} notes)")
     else:
         sys.stdout.write(content)
+    return 0
+
+
+def cmd_query_all(query: str, limit: int, vault_paths: list[str]) -> int:
+    """Query multiple vaults and fuse rankings with reciprocal rank fusion."""
+    if not vault_paths:
+        return cmd_query(query, limit)
+    # Collect per-vault ranked rels (prefixed with vault basename for disambiguation)
+    lists: list[list[str]] = []
+    labels: list[str] = []
+    for vpath in vault_paths:
+        if not os.path.isdir(vpath):
+            continue
+        labels.append(os.path.basename(vpath.rstrip("/")) or vpath)
+        # Run query in-process by temporarily swapping VAULT/INDEX globals is fragile;
+        # spawn a subprocess against that vault's search.py instead.
+        sp = os.path.join(vpath, "_meta", "search.py")
+        if not os.path.isfile(sp):
+            continue
+        try:
+            out = subprocess.check_output(
+                [sys.executable, sp, "query", query, "--limit", str(limit * 2)],
+                stderr=subprocess.DEVNULL, text=True, timeout=60,
+            )
+        except Exception:
+            continue
+        ranked = []
+        for line in out.splitlines():
+            m = re.search(r"(\S+\.md)\s*$", line.strip())
+            if m:
+                ranked.append(f"{labels[-1]}:{m.group(1)}")
+        if ranked:
+            lists.append(ranked)
+    if not lists:
+        print(f"no matches for: {query}")
+        return 0
+    fused = _rrf(lists)
+    for s, key in fused[:limit]:
+        print(f"  {s:5.3f}  {key}")
     return 0
 
 
@@ -428,8 +520,22 @@ def _doc_count(index: dict) -> int:
     return 0
 
 
-def cmd_index(backend: str) -> int:
+def cmd_index(backend: str, if_stale: bool = False) -> int:
     backend = backend or backend_name()
+    if if_stale and os.path.isfile(INDEX):
+        try:
+            prev = json.load(open(INDEX, encoding="utf-8"))
+            stored = prev.get("vault_fp") or ""
+            fp = vault_fingerprint()
+            if stored and stored == fp:
+                print(f"index: fresh (backend={prev.get('backend', '?')}, "
+                      f"{_doc_count(prev)} notes, fp={fp}) — skip rebuild")
+                return 0
+            # Preserve prior backend when rebuilding due to staleness unless overridden
+            if not backend or backend == backend_name():
+                backend = prev.get("backend") or backend
+        except Exception:
+            pass
     index = None
     if backend == "embeddings":
         index = build_embeddings_index()  # None -> clean fallback to bm25 below
@@ -437,11 +543,13 @@ def cmd_index(backend: str) -> int:
         index = build_hybrid_index()
     if index is None:
         index = build_tfidf_index() if backend == "tfidf" else build_bm25_index()
+    index["vault_fp"] = vault_fingerprint()
     json.dump(index, open(INDEX, "w", encoding="utf-8"))
     stats = index.get("_stats") or index.get("embeddings", {}).get("_stats")
     extra = f", reused {stats['reused']} / encoded {stats['encoded']}" if stats else ""
     print(f"wrote {os.path.relpath(INDEX, VAULT)} "
-          f"(backend={index['backend']}, {_doc_count(index)} notes{extra})")
+          f"(backend={index['backend']}, {_doc_count(index)} notes, "
+          f"fp={index['vault_fp']}{extra})")
     return 0
 
 
@@ -541,9 +649,19 @@ def _hybrid_scored(index: dict, query: str) -> list[tuple[float, str]]:
 
 def cmd_query(query: str, limit: int) -> int:
     if not os.path.isfile(INDEX):
-        print("search: no index yet — run `synapse index` first "
-              "(falling back to lexical search).", file=sys.stderr)
-        return cmd_search(query, limit, include_body=True)
+        print("search: no index yet — building BM25 automatically...", file=sys.stderr)
+        cmd_index("bm25")
+    else:
+        # Soft auto-rebuild when fingerprint drifted (keeps query truthful)
+        try:
+            prev = json.load(open(INDEX, encoding="utf-8"))
+            stored = prev.get("vault_fp") or ""
+            fp = vault_fingerprint()
+            if stored and stored != fp:
+                print("search: index stale — rebuilding...", file=sys.stderr)
+                cmd_index(prev.get("backend") or "bm25")
+        except Exception:
+            pass
     index = json.load(open(INDEX, encoding="utf-8"))
     backend = index.get("backend")
     if backend == "embeddings":
@@ -584,10 +702,16 @@ def main() -> int:
 
     p = sub.add_parser("index")
     p.add_argument("--backend", default="")
+    p.add_argument("--if-stale", action="store_true",
+                   help="rebuild only when vault_fp drifted (or index missing)")
 
     p = sub.add_parser("query")
     p.add_argument("query", nargs="+")
     p.add_argument("--limit", type=int, default=10)
+    p.add_argument("--all", action="store_true",
+                   help="fuse results across SYNAPSE_QUERY_VAULTS (colon-separated)")
+
+    sub.add_parser("stale", help="check whether retrieval.json matches the vault")
 
     args = ap.parse_args()
     if args.cmd == "search":
@@ -603,9 +727,26 @@ def main() -> int:
     if args.cmd == "digest":
         return cmd_digest(args.write)
     if args.cmd == "index":
-        return cmd_index(args.backend)
+        return cmd_index(args.backend, if_stale=args.if_stale)
     if args.cmd == "query":
-        return cmd_query(" ".join(args.query), args.limit)
+        q = " ".join(args.query)
+        if args.all:
+            raw = os.environ.get("SYNAPSE_QUERY_VAULTS", "")
+            paths = [p for p in raw.split(":") if p.strip()]
+            if not paths:
+                # default: active vault + every named vault under ../vaults
+                root = os.path.dirname(VAULT)
+                paths = [VAULT]
+                vdir = os.path.join(root, "vaults")
+                if os.path.isdir(vdir):
+                    paths.extend(
+                        os.path.join(vdir, n) for n in sorted(os.listdir(vdir))
+                        if os.path.isdir(os.path.join(vdir, n))
+                    )
+            return cmd_query_all(q, args.limit, paths)
+        return cmd_query(q, args.limit)
+    if args.cmd == "stale":
+        return cmd_stale()
     ap.print_help()
     return 0
 

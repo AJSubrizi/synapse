@@ -3,16 +3,25 @@
 The vault is an **LLM Wiki** (Karpathy's pattern): immutable `raw/` sources, an LLM-owned
 wiki, and a schema in `$BRAIN_VAULT/AGENTS.md`. Operations: ingest → query → lint.
 
-Query the vault before meaningful work (all task types: coding, design, debug, knowledge).
+## Continuous loop (Codex / OpenCode / any AGENTS.md consumer)
 
-1. Open `$BRAIN_VAULT/AGENTS.md` and `$BRAIN_VAULT/index.md` (or Phase 0-short per workflow).
-2. Choose relevant notes; use `summary:` before full bodies (`synapse query` to rank).
-3. After **meaningful work**, ingest external sources (`synapse ingest`) and distill
-   reusable knowledge into the wiki.
-4. Run `synapse lint` (or `python3 "$BRAIN_VAULT/_meta/validate.py"`).
+**Phase 0 — before meaningful work**
+
+1. `synapse status` (expect usable vault paths).
+2. If `$SYNAPSE_BOOTSTRAP_PATH` exists, skim it (hot + digest head).
+3. `synapse query "<user topic>"` (falls back to lexical search if no index).
+4. Read `summary:` on top hits; open bodies only when needed. Cite `[[page-name]]`.
+
+**Phase 2 — after meaningful work**
+
+1. Search first: `synapse search "<topic>"` — prefer update over near-duplicates.
+2. File or refresh: `synapse file <category> <title>` or `synapse file update <stem>`
+   (`file` refuses near-dups unless `--force`).
+3. `synapse lint --strict` → fix every finding → re-run until clean.
 
 **Meaningful work** = new pattern/decision, non-obvious fix, knowledge not in vault, infra
-setup, or skill outcome worth remembering. Skip distillation for typos and purely
-executional tasks.
+setup, or skill outcome worth remembering. Skip for typos and purely executional tasks.
 
-Recommended: RTK for shell commands; Synapse before planning, editing, or project output.
+Recommended: RTK for shell commands. Cursor: `synapse setup cursor`. Claude Code:
+`synapse hooks install` (or `synapse onboard`). OpenCode: `synapse setup opencode`
+(writes `AGENTS.md` + `opencode.json` instructions).

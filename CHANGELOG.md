@@ -2,6 +2,76 @@
 
 ## Unreleased
 
+- **Install ships Cursor hooks** — `install.sh` syncs `cursor-session-start.sh` /
+  `cursor-stop.sh` into the vault and template stash (curl-install parity with upgrade).
+- **Cursor stop ≈ Claude stop-check** — dirty vault → lint follow-up; dirty project
+  with no vault notes → distill nudge (`followup_message`).
+- Clearer onboard hooks messaging; doctor flags missing Cursor hook scripts.
+  Engine **0.5.6**.
+
+- **Cursor loop hooks** — `setup cursor` wires `.cursor/hooks.json`
+  (`sessionStart` bootstrap + `stop` distill nudge) to vault scripts.
+- **Session bootstrap** — `synapse <cli>` writes `_meta/.session-bootstrap.md` and
+  exports `SYNAPSE_BOOTSTRAP_PATH` for wrapped agents.
+- **Distillation guardrails** — `synapse file` / `wiki.py new` refuse near-duplicate
+  title/summary matches unless `--force`; prefer `file update <stem>`.
+- Doctor reports Cursor hooks; agent templates mention bootstrap + `--force`.
+  Engine **0.5.5**.
+
+- **Auto-index on query** — missing or stale `retrieval.json` is rebuilt on
+  `synapse query` (BM25 by default) so recall stays truthful without a manual step.
+- **Flock-safe wiki writes** — `index.md` / `log.md` updates take an exclusive lock
+  against concurrent agents filing notes.
+- **Richer doctor** — Codex / OpenCode / Gemini integration checks.
+- **`synapse pack list`** — list local packs under `_meta/packs/`.
+- Docs: multi-agent setup in README + CUSTOM-LAYOUT; demo transcript linked.
+  Engine **0.5.4**.
+
+- **Deeper Codex / OpenCode / Gemini setup** — continuous-loop `AGENTS.md`/`GEMINI.md`;
+  `setup opencode` writes `.opencode/synapse.md` + merges `opencode.json` instructions;
+  `setup codex` also seeds `~/.codex/AGENTS.md` when missing. `onboard --target all|auto`
+  detects and wires all available agents.
+- **`synapse index --if-stale`** — skip rebuild when fingerprint matches; `lint` auto-rebuilds
+  a stale index. wiki/skill now use `synapse_lib` helpers. Engine **0.5.3**.
+
+- **Engines on `synapse_lib`** — validate/dedup/metrics/search prefer the shared
+  frontmatter helpers (local fallbacks kept). Engine **0.5.2**.
+- **Demo text capture** — `scripts/capture-demo-text.sh` (+ `record-demo.sh` fallback)
+  writes `docs/assets/synapse-demo.txt` when vhs/asciinema are missing.
+
+- **Shared `synapse_lib.py`** — common frontmatter/tokenize/iter_notes for engines.
+- **Auto catalog** — `lint`/`digest --write` regenerates `_meta/catalog.md` (index.md stays human).
+- **`synapse query --all`** — RRF fusion across named vaults (`SYNAPSE_QUERY_VAULTS` or `vaults/`).
+- **Memory packs** — `synapse pack export|import` (tar.gz of wiki subtrees + raw provenance).
+- **CI eval floors** — fixture nDCG@10 gates via `scripts/check_eval_floors.py`.
+- **Demo recorder** — `scripts/record-demo.sh` + `docs/demo.tape` (vhs/asciinema).
+- Engine **0.5.1**.
+
+- **Adoption engine (`synapse onboard`)** — one command: upgrade vault engine → setup
+  Claude Code + Cursor → install Claude hooks → seed demo notes from
+  `examples/distillation/after/` → rich `doctor`. Flags: `--target`, `--no-seed`,
+  `--no-hooks`, `--dir`.
+- **`synapse setup cursor` fixed** — writes `.cursor/rules/synapse.mdc` (`alwaysApply`)
+  instead of a generic `AGENTS.md` (matches `docs/CUSTOM-LAYOUT.md`). Bare
+  `synapse setup` lists configured targets.
+- **`synapse upgrade`** — always syncs `_meta` engine files + hooks from templates;
+  stamps `ENGINE_VERSION` (0.5.0). `install.sh` now refreshes engines on every install
+  (no more silent `copy_if_missing` drift) and stashes full templates for post-install
+  upgrade/onboard/seed.
+- **Rich `doctor`** — boot files, python3/jq, engine files + version drift, Claude hooks,
+  Cursor rule, retrieval index freshness.
+- **Index staleness** — `retrieval.json` stores `vault_fp`; `search.py stale` and
+  `lint --strict` surface STALE indexes.
+- **Hook/query ranker aligned** — `prompt-retrieve.sh` uses `cmd_query` when an index
+  exists (same backend as `synapse query`), else lexical search. English systemMessage.
+- **`synapse file update <stem>`** / `wiki.py update` — refresh summary/tags/links and
+  bump `updated` without orphaning the page.
+- **`skill suggest` retrieval-backed** — prefers BM25/hybrid hits under `skills/`, falls
+  back to token overlap.
+- **Distillation loop in workflow** — Phase 2 requires search-before-create and
+  `lint --strict` → fix → recheck; `--strict` also fails on dedup candidates + stale index.
+- **Tests:** `tests/test_cli_onboard.py`.
+
 - **Installer fixed** — `install.sh` was stale: it created the old category dirs and never
   copied the new engine files, so topping up an existing vault left it without
   `wiki.py` / `vault_config.py` / `metrics.py` / `categories` / `prompt-retrieve.sh`. It now

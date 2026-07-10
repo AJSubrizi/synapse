@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "CURSOR_SESSION_START_CMD"
+      }
+    ],
+    "stop": [
+      {
+        "command": "CURSOR_STOP_CMD",
+        "loop_limit": 1
+      }
+    ]
+  }
+}

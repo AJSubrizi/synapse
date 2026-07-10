@@ -26,28 +26,34 @@ try:  # single source of truth (_meta/vault_config.py), with a test-time fallbac
     from vault_config import CATEGORIES as CONTENT_DIRS
 except Exception:
     CONTENT_DIRS = ("concepts", "techniques", "projects", "skills", "sources", "analysis", "people", "organizations", "journal")
-STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
-    "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
-    "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
-}
+try:
+    from synapse_lib import STOPWORDS, split_frontmatter, parse_tags as _lib_parse_tags
+except Exception:
+    STOPWORDS = {
+        "the", "a", "an", "and", "or", "but", "if", "then", "else", "for", "of", "to",
+        "in", "on", "at", "by", "with", "as", "is", "are", "be", "was", "were", "this",
+        "that", "these", "those", "it", "its", "into", "from", "when", "use", "used",
+    }
 
+    def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
+        if not text.startswith("---"):
+            return {}, text
+        end = text.find("\n---", 3)
+        if end == -1:
+            return {}, text
+        fm: dict[str, str] = {}
+        for line in text[3:end].splitlines():
+            if ":" in line and not line.startswith(" "):
+                key, _, value = line.partition(":")
+                fm[key.strip()] = value.strip()
+        return fm, text[end + 4:]
 
-def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    if not text.startswith("---"):
-        return {}, text
-    end = text.find("\n---", 3)
-    if end == -1:
-        return {}, text
-    fm: dict[str, str] = {}
-    for line in text[3:end].splitlines():
-        if ":" in line and not line.startswith(" "):
-            key, _, value = line.partition(":")
-            fm[key.strip()] = value.strip()
-    return fm, text[end + 4:]
+    _lib_parse_tags = None
 
 
 def parse_tags(raw: str) -> set[str]:
+    if _lib_parse_tags is not None:
+        return set(_lib_parse_tags(raw))
     return {t.strip().lower() for t in raw.strip("[] ").split(",") if t.strip()}
 
 

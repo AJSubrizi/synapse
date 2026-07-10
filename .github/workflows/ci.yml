@@ -23,8 +23,14 @@ jobs:
 
       - name: Retrieval benchmark smoke (fixtures, offline)
         run: |
-          python3 benchmarks/longmemeval/run_longmemeval.py --data benchmarks/longmemeval/fixture.json
-          python3 benchmarks/locomo/run_locomo.py --data benchmarks/locomo/fixture.json
+          python3 benchmarks/longmemeval/run_longmemeval.py --data benchmarks/longmemeval/fixture.json \
+            | tee /tmp/lme.txt
+          python3 benchmarks/locomo/run_locomo.py --data benchmarks/locomo/fixture.json \
+            | tee /tmp/locomo.txt
+          # Regression floors on fixtures — catch accidental ranker breakage.
+          python3 scripts/check_eval_floors.py /tmp/lme.txt 0.50
+          python3 scripts/check_eval_floors.py /tmp/locomo.txt 0.40
+          echo "eval gates ok"
 
       - name: Answer-track smoke (offline echo/exact, no API)
         run: |

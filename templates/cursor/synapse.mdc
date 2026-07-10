@@ -1,0 +1,50 @@
+---
+description: Synapse LLM Wiki — query before work, distill after, lint before close
+alwaysApply: true
+---
+
+# Synapse — continuous memory loop (Cursor)
+
+This project uses a Synapse vault (Karpathy LLM Wiki): plain Markdown you own,
+queried before work and grown after meaningful sessions.
+
+Vault path (resolved by the CLI; override with `BRAIN_VAULT`):
+`$BRAIN_VAULT` — typically `~/Synapse/vault`.
+
+## Session bootstrap
+
+If Cursor `sessionStart` injected `<synapse-memory>`, treat it as Phase 0 context.
+Also read `$SYNAPSE_BOOTSTRAP_PATH` (usually `$BRAIN_VAULT/_meta/.session-bootstrap.md`)
+when present — written by `synapse <cli>` wrappers.
+
+## Every turn (Phase 0)
+
+Before planning or editing on a non-trivial request:
+
+1. Run `synapse query "<user topic>"` (or `synapse search "<topic>"` if no index).
+2. Open `$BRAIN_VAULT/hot.md` and any top-ranked notes (`summary:` first).
+3. Reuse vault knowledge instead of re-deriving it. Cite pages as `[[page-name]]`.
+
+Skip for typos, formatting-only, or purely executional tasks with complete instructions
+(Phase 0-short: `hot.md` + targeted search only).
+
+## After meaningful work (Phase 2)
+
+If you learned a pattern, decision, non-obvious fix, or anything a future agent should
+not re-derive:
+
+1. Prefer update over duplicate: `synapse search "<topic>"` first.
+2. File new knowledge: `synapse file <category> <title>` then fill the body, **or**
+   `synapse file update <stem>`. Near-duplicates are refused unless `--force`.
+3. Cross-link with at least one `[[wikilink]]`; update `index.md` / `hot.md` / `log.md`
+   if the CLI did not.
+4. Run `synapse lint --strict` and fix every warning, then re-run until clean.
+
+Categories (core): `concepts` · `techniques` · `projects` · `skills`.
+Optional on demand: `sources` · `analysis` · `people` · `organizations` · `journal`.
+
+## Session hygiene
+
+- `synapse status` / `synapse doctor` when the vault looks wrong.
+- `synapse metrics` to see if distillation has stalled.
+- Schema and workflow: `$BRAIN_VAULT/AGENTS.md`, `$BRAIN_VAULT/_meta/workflow.md`.

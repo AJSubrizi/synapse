@@ -1,6 +1,7 @@
 .DS_Store
 *.log
 tmp/
+.tmp-tests/
 .env
 
 # Local editor/agent settings — must not ship to clones
@@ -21,3 +22,6 @@ benchmarks/longmemeval/longmemeval_*.json
 benchmarks/longmemeval/LongMemEval-main/
 benchmarks/*/results.json
 
+
+# Local canvas / agent scratch (do not ship)
+.ohcanvas/
