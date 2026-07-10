@@ -87,42 +87,53 @@ def register_in_index(stem: str, summary: str, tags: list[str], heading: str) ->
     index = os.path.join(VAULT, "index.md")
     if not os.path.isfile(index):
         return False
-    text = open(index, encoding="utf-8").read()
-    if re.search(rf"\[\[{re.escape(stem)}\]\]", text):
-        return False  # already catalogued
-    tag_str = "".join(f" #{t}" for t in tags)
-    bullet = f"- [[{stem}]] — {summary} ({tag_str.strip()})"
-    lines = text.splitlines()
-    out: list[str] = []
-    inserted = False
-    i = 0
-    while i < len(lines):
-        out.append(lines[i])
-        if not inserted and lines[i].strip() == f"## {heading}":
-            # advance to the end of this section (next '## ' or EOF), keep existing bullets
-            j = i + 1
-            block: list[str] = []
-            while j < len(lines) and not lines[j].startswith("## "):
-                block.append(lines[j])
-                j += 1
-            # trim trailing blanks, append our bullet, restore one blank separator
-            while block and block[-1].strip() == "":
-                block.pop()
-            if not block:
-                block.append("")  # blank line under the heading
-            block.append(bullet)
-            block.append("")
-            out.extend(block)
-            i = j
-            inserted = True
-            continue
-        i += 1
-    if not inserted:  # heading missing — create the section at EOF
-        if out and out[-1].strip() != "":
-            out.append("")
-        out.extend([f"## {heading}", "", bullet, ""])
-    with open(index, "w", encoding="utf-8") as fh:
+    # flock against concurrent agents filing notes in the same session
+    with open(index, "r+", encoding="utf-8") as fh:
+        try:
+            import fcntl
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        except Exception:
+            pass
+        text = fh.read()
+        if re.search(rf"\[\[{re.escape(stem)}\]\]", text):
+            return False  # already catalogued
+        tag_str = "".join(f" #{t}" for t in tags)
+        bullet = f"- [[{stem}]] — {summary} ({tag_str.strip()})"
+        lines = text.splitlines()
+        out: list[str] = []
+        inserted = False
+        i = 0
+        while i < len(lines):
+            out.append(lines[i])
+            if not inserted and lines[i].strip() == f"## {heading}":
+                j = i + 1
+                block: list[str] = []
+                while j < len(lines) and not lines[j].startswith("## "):
+                    block.append(lines[j])
+                    j += 1
+                while block and block[-1].strip() == "":
+                    block.pop()
+                if not block:
+                    block.append("")
+                block.append(bullet)
+                block.append("")
+                out.extend(block)
+                i = j
+                inserted = True
+                continue
+            i += 1
+        if not inserted:
+            if out and out[-1].strip() != "":
+                out.append("")
+            out.extend([f"## {heading}", "", bullet, ""])
+        fh.seek(0)
+        fh.truncate()
         fh.write("\n".join(out).rstrip() + "\n")
+        try:
+            import fcntl
+            fcntl.flock(fh, fcntl.LOCK_UN)
+        except Exception:
+            pass
     return True
 
 
@@ -131,7 +142,17 @@ def append_log(op: str, stem: str, category: str, source: str | None) -> None:
     src = f' source="{source}"' if source else ""
     entry = f'- [{now_iso()}] {op} page="{category}/{stem}"{src}'
     with open(log, "a", encoding="utf-8") as fh:
+        try:
+            import fcntl
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        except Exception:
+            pass
         fh.write(entry + "\n")
+        try:
+            import fcntl
+            fcntl.flock(fh, fcntl.LOCK_UN)
+        except Exception:
+            pass
 
 
 def cmd_new(args: argparse.Namespace) -> int:

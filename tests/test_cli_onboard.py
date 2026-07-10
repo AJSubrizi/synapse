@@ -183,11 +183,28 @@ class TestIndexIfStale:
             shutil.rmtree(home)
 
 
+class TestAutoIndexOnQuery:
+    def test_query_builds_index_when_missing(self):
+        home, vault, env = make_env()
+        try:
+            run(env, "file", "concepts", "auto-idx",
+                "--summary", "Note that should be findable after auto index build.")
+            idx = os.path.join(vault, "_meta", "retrieval.json")
+            if os.path.isfile(idx):
+                os.remove(idx)
+            r = run(env, "query", "auto index build findable")
+            assert os.path.isfile(idx), "query did not build index"
+            assert "auto-idx" in r.stdout or "concepts/" in r.stdout
+        finally:
+            shutil.rmtree(home)
+
+
 if __name__ == "__main__":
     # Minimal runner (no pytest required — matches other tests/)
     failed = 0
     for cls in (TestSetupCursor, TestUpgrade, TestOnboardSeed, TestWikiUpdate,
-                TestIndexStale, TestDoctor, TestSetupOpenCode, TestIndexIfStale):
+                TestIndexStale, TestDoctor, TestSetupOpenCode, TestIndexIfStale,
+                TestAutoIndexOnQuery):
         inst = cls()
         for name in dir(inst):
             if not name.startswith("test_"):

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Auto-index on query** — missing or stale `retrieval.json` is rebuilt on
+  `synapse query` (BM25 by default) so recall stays truthful without a manual step.
+- **Flock-safe wiki writes** — `index.md` / `log.md` updates take an exclusive lock
+  against concurrent agents filing notes.
+- **Richer doctor** — Codex / OpenCode / Gemini integration checks.
+- **`synapse pack list`** — list local packs under `_meta/packs/`.
+- Docs: multi-agent setup in README + CUSTOM-LAYOUT; demo transcript linked.
+  Engine **0.5.4**.
+
 - **Deeper Codex / OpenCode / Gemini setup** — continuous-loop `AGENTS.md`/`GEMINI.md`;
   `setup opencode` writes `.opencode/synapse.md` + merges `opencode.json` instructions;
   `setup codex` also seeds `~/.codex/AGENTS.md` when missing. `onboard --target all|auto`

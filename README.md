@@ -17,15 +17,19 @@
 ```bash
 curl -fsSL https://raw.githubusercontent.com/AJSubrizi/synapse/main/scripts/get.sh | bash
 
-synapse onboard              # Claude Code + Cursor: setup, hooks, seed notes, doctor
+synapse onboard              # detect agents → setup + hooks + seed + doctor
+# or: synapse onboard --target all
 # or step-by-step:
 #   synapse setup claude-code && synapse hooks install
-#   synapse setup cursor
+#   synapse setup cursor | codex | opencode | gemini
 ```
 
 That's it — your agent now reads and grows a knowledge base on every session.
 
 ![A Synapse vault visualized as a graph in Obsidian](docs/assets/synapse-graph.png)
+
+Demo (text transcript; GIF via `./scripts/record-demo.sh` when `vhs` is installed):
+[`docs/assets/synapse-demo.txt`](docs/assets/synapse-demo.txt).
 
 ## How it works
 

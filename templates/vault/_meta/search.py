@@ -649,9 +649,19 @@ def _hybrid_scored(index: dict, query: str) -> list[tuple[float, str]]:
 
 def cmd_query(query: str, limit: int) -> int:
     if not os.path.isfile(INDEX):
-        print("search: no index yet — run `synapse index` first "
-              "(falling back to lexical search).", file=sys.stderr)
-        return cmd_search(query, limit, include_body=True)
+        print("search: no index yet — building BM25 automatically...", file=sys.stderr)
+        cmd_index("bm25")
+    else:
+        # Soft auto-rebuild when fingerprint drifted (keeps query truthful)
+        try:
+            prev = json.load(open(INDEX, encoding="utf-8"))
+            stored = prev.get("vault_fp") or ""
+            fp = vault_fingerprint()
+            if stored and stored != fp:
+                print("search: index stale — rebuilding...", file=sys.stderr)
+                cmd_index(prev.get("backend") or "bm25")
+        except Exception:
+            pass
     index = json.load(open(INDEX, encoding="utf-8"))
     backend = index.get("backend")
     if backend == "embeddings":

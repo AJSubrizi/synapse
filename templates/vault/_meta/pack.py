@@ -238,6 +238,31 @@ def cmd_import(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_list() -> int:
+    packs_dir = os.path.join(META, "packs")
+    if not os.path.isdir(packs_dir):
+        print("pack: no local packs yet (export one with `synapse pack export`)")
+        return 0
+    rows = []
+    for name in sorted(os.listdir(packs_dir)):
+        root = os.path.join(packs_dir, name)
+        man = os.path.join(root, "PACK.md")
+        if not os.path.isfile(man):
+            continue
+        text = open(man, encoding="utf-8").read()
+        ver = re.search(r"^version:\s*(.+)$", text, re.M)
+        pages = re.search(r"^pages:\s*(\d+)", text, re.M)
+        rows.append((name, (ver.group(1).strip() if ver else "?"),
+                     (pages.group(1) if pages else "?")))
+    if not rows:
+        print("pack: no local packs yet")
+        return 0
+    print(f"{'name':<24} {'ver':<8} pages")
+    for name, ver, pages in rows:
+        print(f"{name:<24} {ver:<8} {pages}")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Synapse memory packs")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -251,11 +276,14 @@ def main() -> int:
     i = sub.add_parser("import")
     i.add_argument("path", help="pack directory or .tar.gz")
     i.add_argument("--force", action="store_true")
+    sub.add_parser("list", help="list packs under _meta/packs/")
     args = ap.parse_args()
     if args.cmd == "export":
         return cmd_export(args)
     if args.cmd == "import":
         return cmd_import(args)
+    if args.cmd == "list":
+        return cmd_list()
     return 2
 
 

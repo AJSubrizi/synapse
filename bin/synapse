@@ -78,7 +78,7 @@ Usage:
   $CMD_NAME file <cat> <ttl> file knowledge back as a wiki page (index + log) — compounds query
   $CMD_NAME lint [--strict]  health-check the wiki: validate + dedup + skill deps (= check)
   $CMD_NAME metrics          loop metrics: size, growth, activity, retrieval, stall signal
-  $CMD_NAME pack export|import   shareable memory packs (tar.gz of wiki subtrees)
+  $CMD_NAME pack export|import|list   shareable memory packs (tar.gz of wiki subtrees)
 
   $CMD_NAME search [opts]    filter notes by query, tag, or title (grep-based lookup)
   $CMD_NAME digest           (re)write _meta/digest.md — a compact map of the vault
@@ -176,6 +176,32 @@ doctor() {
     printf 'ok   Cursor rule (%s)\n' "$cursor_rule"
   else
     printf 'warn Cursor rule missing  (run: %s setup cursor)\n' "$CMD_NAME"
+  fi
+  # Codex
+  if [[ -f "$PWD/AGENTS.md" ]] && grep -q 'synapse query' "$PWD/AGENTS.md" 2>/dev/null; then
+    printf 'ok   Codex/OpenCode AGENTS.md (project)\n'
+  elif [[ -f "$HOME/.codex/AGENTS.md" ]] && grep -q 'synapse query' "$HOME/.codex/AGENTS.md" 2>/dev/null; then
+    printf 'ok   Codex AGENTS.md (global ~/.codex)\n'
+  elif command -v codex >/dev/null 2>&1 || [[ -d "$HOME/.codex" ]]; then
+    printf 'warn Codex present but Synapse AGENTS.md not found  (run: %s setup codex)\n' "$CMD_NAME"
+  else
+    printf 'skip Codex (not detected)\n'
+  fi
+  # OpenCode
+  if [[ -f "$PWD/opencode.json" ]] && grep -q 'synapse.md' "$PWD/opencode.json" 2>/dev/null; then
+    printf 'ok   OpenCode opencode.json instructions\n'
+  elif command -v opencode >/dev/null 2>&1; then
+    printf 'warn OpenCode present but instructions not wired  (run: %s setup opencode)\n' "$CMD_NAME"
+  else
+    printf 'skip OpenCode (not detected)\n'
+  fi
+  # Gemini
+  if [[ -f "$PWD/GEMINI.md" ]] || [[ -f "$HOME/GEMINI.md" ]]; then
+    printf 'ok   Gemini context file present\n'
+  elif command -v gemini >/dev/null 2>&1; then
+    printf 'warn Gemini present but GEMINI.md missing  (run: %s setup gemini)\n' "$CMD_NAME"
+  else
+    printf 'skip Gemini (not detected)\n'
   fi
 
   printf '\n== retrieval ==\n'
