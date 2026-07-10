@@ -11,6 +11,7 @@ command -v python3 >/dev/null 2>&1 || { echo '{}'; exit 0; }
 [ -f "$META/search.py" ] || { echo '{}'; exit 0; }
 
 input="$(cat 2>/dev/null || true)"
+# shellcheck disable=SC2016  # the python program is intentionally a literal (no shell expansion)
 printf '%s' "$input" | META="$META" VAULT="$(cd "$META/.." && pwd)" python3 -c '
 import json, os, sys
 meta = os.environ["META"]

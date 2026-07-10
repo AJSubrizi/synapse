@@ -30,6 +30,7 @@ run_check() {
 }
 
 # Parse status / loop_count / cwd via python (Cursor payload varies by version)
+# shellcheck disable=SC2016  # the python program is intentionally a literal (no shell expansion)
 eval "$(printf '%s' "$input" | python3 -c '
 import json, os, shlex, sys
 try:

@@ -456,6 +456,7 @@ file_cmd() {
     printf 'usage: %s file <category> <title> [--summary S] [--tags a,b] [--source SRC] [--link PAGE] [--force]\n' "$CMD_NAME"
     printf '       %s file update <stem> [--summary S] [--tags a,b] [--link PAGE]\n' "$CMD_NAME"
     printf 'categories: concepts people organizations techniques sources analysis skills projects journal\n'
+    # shellcheck disable=SC2016  # backticks are literal usage hints, not command substitution
     printf 'note: refuses near-duplicates unless --force; prefer `file update <stem>`\n'
     return 2
   fi
