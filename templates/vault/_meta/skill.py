@@ -31,6 +31,24 @@ SKILLS_DIR = os.environ.get("BRAIN_SKILLS_DIR") or os.path.join(os.path.dirname(
 LOG = os.path.join(SKILLS_DIR, "_ratings.log")
 SCORE_KEYS = ("uses", "score", "votes", "last_used")
 
+try:
+    from synapse_lib import split_fm_lines, fm_get
+except Exception:
+    def split_fm_lines(text: str) -> tuple[list[str], str]:
+        if not text.startswith("---"):
+            return [], text
+        end = text.find("\n---", 3)
+        if end == -1:
+            return [], text
+        return text[3:end].lstrip("\n").splitlines(), text[end + 4:]
+
+    def fm_get(fm: list[str], key: str) -> str | None:
+        for line in fm:
+            m = re.match(rf"{key}\s*:\s*(.*)$", line)
+            if m:
+                return m.group(1).strip().strip("'\"")
+        return None
+
 
 def today() -> str:
     return dt.date.today().isoformat()
@@ -48,23 +66,11 @@ def resolve(name: str) -> str | None:
 
 
 def split_fm(text: str) -> tuple[list[str], str]:
-    """Return (frontmatter_lines, rest). Empty list if no frontmatter."""
-    if not text.startswith("---"):
-        return [], text
-    end = text.find("\n---", 3)
-    if end == -1:
-        return [], text
-    fm = text[3:end].lstrip("\n").splitlines()
-    rest = text[end + 4:]
-    return fm, rest
+    return split_fm_lines(text)
 
 
 def get(fm: list[str], key: str) -> str | None:
-    for line in fm:
-        m = re.match(rf"{key}\s*:\s*(.*)$", line)
-        if m:
-            return m.group(1).strip().strip("'\"")
-    return None
+    return fm_get(fm, key)
 
 
 def requires_of(fm: list[str]) -> list[str]:

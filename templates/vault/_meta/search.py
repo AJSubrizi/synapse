@@ -520,8 +520,22 @@ def _doc_count(index: dict) -> int:
     return 0
 
 
-def cmd_index(backend: str) -> int:
+def cmd_index(backend: str, if_stale: bool = False) -> int:
     backend = backend or backend_name()
+    if if_stale and os.path.isfile(INDEX):
+        try:
+            prev = json.load(open(INDEX, encoding="utf-8"))
+            stored = prev.get("vault_fp") or ""
+            fp = vault_fingerprint()
+            if stored and stored == fp:
+                print(f"index: fresh (backend={prev.get('backend', '?')}, "
+                      f"{_doc_count(prev)} notes, fp={fp}) — skip rebuild")
+                return 0
+            # Preserve prior backend when rebuilding due to staleness unless overridden
+            if not backend or backend == backend_name():
+                backend = prev.get("backend") or backend
+        except Exception:
+            pass
     index = None
     if backend == "embeddings":
         index = build_embeddings_index()  # None -> clean fallback to bm25 below
@@ -678,6 +692,8 @@ def main() -> int:
 
     p = sub.add_parser("index")
     p.add_argument("--backend", default="")
+    p.add_argument("--if-stale", action="store_true",
+                   help="rebuild only when vault_fp drifted (or index missing)")
 
     p = sub.add_parser("query")
     p.add_argument("query", nargs="+")
@@ -701,7 +717,7 @@ def main() -> int:
     if args.cmd == "digest":
         return cmd_digest(args.write)
     if args.cmd == "index":
-        return cmd_index(args.backend)
+        return cmd_index(args.backend, if_stale=args.if_stale)
     if args.cmd == "query":
         q = " ".join(args.query)
         if args.all:

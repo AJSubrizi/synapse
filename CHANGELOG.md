@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Deeper Codex / OpenCode / Gemini setup** — continuous-loop `AGENTS.md`/`GEMINI.md`;
+  `setup opencode` writes `.opencode/synapse.md` + merges `opencode.json` instructions;
+  `setup codex` also seeds `~/.codex/AGENTS.md` when missing. `onboard --target all|auto`
+  detects and wires all available agents.
+- **`synapse index --if-stale`** — skip rebuild when fingerprint matches; `lint` auto-rebuilds
+  a stale index. wiki/skill now use `synapse_lib` helpers. Engine **0.5.3**.
+
 - **Engines on `synapse_lib`** — validate/dedup/metrics/search prefer the shared
   frontmatter helpers (local fallbacks kept). Engine **0.5.2**.
 - **Demo text capture** — `scripts/capture-demo-text.sh` (+ `record-demo.sh` fallback)

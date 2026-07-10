@@ -97,12 +97,14 @@ copy_if_missing "$REPO_DIR/templates/GEMINI.md" "$HOME/GEMINI.md"
 # Stash templates so `synapse setup` / `upgrade` / `onboard` work post-install
 # (the installed CLI has no repo checkout beside it).
 mkdir -p "$BRAIN_ROOT/templates/vault/_meta/hooks" "$BRAIN_ROOT/templates/cursor" \
+         "$BRAIN_ROOT/templates/opencode" \
          "$BRAIN_ROOT/templates/vault/skills" \
          "$BRAIN_ROOT/templates/examples/distillation/after"
 sync_engine "$REPO_DIR/templates/AGENTS.md" "$BRAIN_ROOT/templates/AGENTS.md"
 sync_engine "$REPO_DIR/templates/CLAUDE.md" "$BRAIN_ROOT/templates/CLAUDE.md"
 sync_engine "$REPO_DIR/templates/GEMINI.md" "$BRAIN_ROOT/templates/GEMINI.md"
 sync_engine "$REPO_DIR/templates/cursor/synapse.mdc" "$BRAIN_ROOT/templates/cursor/synapse.mdc"
+sync_engine "$REPO_DIR/templates/opencode/synapse.md" "$BRAIN_ROOT/templates/opencode/synapse.md"
 # Full engine tree for upgrade_cmd
 for f in validate.py dedup.py skill.py search.py wiki.py metrics.py vault_config.py \
          synapse_lib.py pack.py \

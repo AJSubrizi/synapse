@@ -282,9 +282,12 @@ check() {
   fi
   if [[ -f "$BRAIN_VAULT/_meta/search.py" ]]; then
     printf '\n== retrieval index ==\n'
-    python3 "$BRAIN_VAULT/_meta/search.py" stale || {
-      if [[ "$strict" -eq 1 ]]; then rc=1; fi
-    }
+    if ! python3 "$BRAIN_VAULT/_meta/search.py" stale; then
+      printf 'synapse: rebuilding stale index...\n'
+      python3 "$BRAIN_VAULT/_meta/search.py" index --if-stale || {
+        if [[ "$strict" -eq 1 ]]; then rc=1; fi
+      }
+    fi
     printf '\n== catalog refresh ==\n'
     python3 "$BRAIN_VAULT/_meta/search.py" digest --write || true
   fi
@@ -526,9 +529,16 @@ setup_cmd() {
     elif [[ -f "$dest_dir/AGENTS.md" ]]; then mark="partial (AGENTS.md only — re-run setup cursor)"
     else mark="not set"; fi
     printf '  cursor        %s\n' "$mark"
-    # codex / opencode / gemini
-    if [[ -f "$dest_dir/AGENTS.md" ]]; then mark="configured"; else mark="not set"; fi
+    # codex
+    if [[ -f "$dest_dir/AGENTS.md" ]]; then mark="configured"
+    elif [[ -f "$HOME/.codex/AGENTS.md" ]] && grep -q 'synapse query' "$HOME/.codex/AGENTS.md" 2>/dev/null; then mark="global ~/.codex/AGENTS.md"
+    else mark="not set"; fi
     printf '  codex         %s\n' "$mark"
+    # opencode
+    if [[ -f "$dest_dir/opencode.json" ]] && grep -q 'opencode/synapse.md\|synapse.md' "$dest_dir/opencode.json" 2>/dev/null; then
+      mark="configured (opencode.json + instructions)"
+    elif [[ -f "$dest_dir/AGENTS.md" ]]; then mark="partial (AGENTS.md — re-run setup opencode)"
+    else mark="not set"; fi
     printf '  opencode      %s\n' "$mark"
     if [[ -f "$dest_dir/GEMINI.md" || -f "$HOME/GEMINI.md" ]]; then mark="configured"; else mark="not set"; fi
     printf '  gemini        %s\n' "$mark"
@@ -540,15 +550,28 @@ setup_cmd() {
     return 2
   fi
 
+  _install_context_file() {
+    local src="$1" dst="$2" name
+    name="$(basename "$dst")"
+    mkdir -p "$(dirname "$dst")"
+    if [[ -f "$dst" ]] && cmp -s "$src" "$dst"; then
+      printf 'synapse: %s already up to date (%s)\n' "$name" "$dst"
+    elif [[ -f "$dst" ]]; then
+      printf 'synapse: %s exists and differs — left unchanged: %s\n' "$name" "$dst" >&2
+      printf '         remove it (or pass a clean dir) to reinstall the template.\n' >&2
+      return 1
+    else
+      cp "$src" "$dst"
+      printf 'synapse: installed %s -> %s\n' "$name" "$dst"
+    fi
+    return 0
+  }
+
   case "$target" in
     cursor)
       local src="$templates/cursor/synapse.mdc"
-      # Fall back to repo-relative if install only stashed top-level templates
       [[ -f "$src" ]] || src="$templates/../cursor/synapse.mdc"
-      if [[ ! -f "$src" ]]; then
-        # Last resort: synthesize from AGENTS.md content into .mdc
-        src=""
-      fi
+      if [[ ! -f "$src" ]]; then src=""; fi
       local rule_dir="$dest_dir/.cursor/rules"
       local dst="$rule_dir/synapse.mdc"
       mkdir -p "$rule_dir"
@@ -564,7 +587,6 @@ setup_cmd() {
           fi
         fi
       else
-        # Inline minimal rule if template missing
         cat > "$dst" <<EOF
 ---
 description: Synapse LLM Wiki continuous loop
@@ -577,16 +599,64 @@ Query the vault before meaningful work: \`synapse query "<topic>"\`.
 After meaningful work, distill with \`synapse file\` / update notes, then
 \`synapse lint --strict\`. Vault: $BRAIN_VAULT
 EOF
-        if [[ ! -f "$dst" ]]; then
-          printf 'synapse: failed to write Cursor rule -> %s\n' "$dst" >&2
-          return 1
-        fi
         printf 'synapse: installed Cursor rule (inline) -> %s\n' "$dst"
       fi
-      # Also drop AGENTS.md if missing (Codex/shared agents)
       if [[ ! -f "$dest_dir/AGENTS.md" && -f "$templates/AGENTS.md" ]]; then
         cp "$templates/AGENTS.md" "$dest_dir/AGENTS.md"
         printf 'synapse: installed AGENTS.md -> %s/AGENTS.md\n' "$dest_dir"
+      fi
+      printf 'vault: %s\n' "$BRAIN_VAULT"
+      return 0
+      ;;
+    opencode)
+      [[ -f "$templates/AGENTS.md" ]] || { printf 'synapse: missing AGENTS.md template\n' >&2; return 2; }
+      _install_context_file "$templates/AGENTS.md" "$dest_dir/AGENTS.md" || true
+      mkdir -p "$dest_dir/.opencode"
+      local instr_src="$templates/opencode/synapse.md"
+      [[ -f "$instr_src" ]] || instr_src="$templates/../opencode/synapse.md"
+      if [[ -f "$instr_src" ]]; then
+        cp "$instr_src" "$dest_dir/.opencode/synapse.md"
+        printf 'synapse: installed OpenCode instructions -> %s/.opencode/synapse.md\n' "$dest_dir"
+      fi
+      # Merge instructions into opencode.json (idempotent)
+      DEST="$dest_dir" python3 - <<'PY'
+import json, os
+dest = os.environ["DEST"]
+path = os.path.join(dest, "opencode.json")
+data = {}
+if os.path.isfile(path):
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+    except Exception as exc:
+        print(f"synapse: cannot parse {path}: {exc}", flush=True)
+        raise SystemExit(0)
+instr = data.setdefault("instructions", [])
+if not isinstance(instr, list):
+    instr = [instr]
+    data["instructions"] = instr
+entry = ".opencode/synapse.md"
+if entry not in instr:
+    instr.append(entry)
+    data.setdefault("$schema", "https://opencode.ai/config.json")
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+        fh.write("\n")
+    print(f"synapse: wired {entry} into {path}")
+else:
+    print(f"synapse: {entry} already listed in {path}")
+PY
+      printf 'vault: %s\n' "$BRAIN_VAULT"
+      return 0
+      ;;
+    codex)
+      [[ -f "$templates/AGENTS.md" ]] || { printf 'synapse: missing AGENTS.md template\n' >&2; return 2; }
+      _install_context_file "$templates/AGENTS.md" "$dest_dir/AGENTS.md" || true
+      # Global Codex home bootstrap (only if missing — never overwrite personal prefs)
+      if [[ -d "$HOME/.codex" && ! -f "$HOME/.codex/AGENTS.md" && ! -f "$HOME/.codex/AGENTS.override.md" ]]; then
+        cp "$templates/AGENTS.md" "$HOME/.codex/AGENTS.md"
+        printf 'synapse: installed global Codex bootstrap -> ~/.codex/AGENTS.md\n'
+      elif [[ -f "$HOME/.codex/AGENTS.md" ]]; then
+        printf 'synapse: ~/.codex/AGENTS.md already present (left unchanged)\n'
       fi
       printf 'vault: %s\n' "$BRAIN_VAULT"
       return 0
@@ -596,7 +666,6 @@ EOF
   local src name
   case "$target" in
     claude|claude-code)     src="$templates/CLAUDE.md";  name="CLAUDE.md" ;;
-    codex|opencode)         src="$templates/AGENTS.md";  name="AGENTS.md" ;;
     gemini)                 src="$templates/GEMINI.md";  name="GEMINI.md" ;;
     *)
       printf 'synapse: unknown target: %s (claude-code|codex|cursor|gemini|opencode)\n' "$target" >&2
@@ -764,7 +833,7 @@ onboard_cmd() {
       --no-hooks) do_hooks=0; shift ;;
       --dir) dest_dir="${2:-$PWD}"; shift 2 ;;
       -h|--help)
-        printf 'usage: %s onboard [--target auto|claude-code|cursor|both] [--seed|--no-seed] [--hooks|--no-hooks] [--dir DIR]\n' "$CMD_NAME"
+        printf 'usage: %s onboard [--target auto|all|claude-code|cursor|codex|opencode|gemini|both] [--seed|--no-seed] [--hooks|--no-hooks] [--dir DIR]\n' "$CMD_NAME"
         return 0 ;;
       *) printf 'synapse: unknown onboard flag: %s\n' "$1" >&2; return 2 ;;
     esac
@@ -774,21 +843,32 @@ onboard_cmd() {
   upgrade_cmd || true
 
   printf '\n== 2/5 setup agents ==\n'
-  local do_claude=0 do_cursor=0
+  local do_claude=0 do_cursor=0 do_codex=0 do_opencode=0 do_gemini=0
   case "$target" in
     auto)
       if command -v claude >/dev/null 2>&1 || [[ -d "$HOME/.claude" ]]; then do_claude=1; fi
       if command -v cursor >/dev/null 2>&1 || [[ -d "$HOME/.cursor" ]] || [[ -d "$dest_dir/.cursor" ]]; then do_cursor=1; fi
-      # If nothing detected, still set up both so first-run works
-      if [[ "$do_claude" -eq 0 && "$do_cursor" -eq 0 ]]; then do_claude=1; do_cursor=1; fi
+      if command -v codex >/dev/null 2>&1 || [[ -d "$HOME/.codex" ]]; then do_codex=1; fi
+      if command -v opencode >/dev/null 2>&1 || [[ -d "$dest_dir/.opencode" ]]; then do_opencode=1; fi
+      if command -v gemini >/dev/null 2>&1; then do_gemini=1; fi
+      if [[ "$do_claude" -eq 0 && "$do_cursor" -eq 0 && "$do_codex" -eq 0 && "$do_opencode" -eq 0 && "$do_gemini" -eq 0 ]]; then
+        do_claude=1; do_cursor=1
+      fi
       ;;
+    all) do_claude=1; do_cursor=1; do_codex=1; do_opencode=1; do_gemini=1 ;;
     claude|claude-code) do_claude=1 ;;
     cursor) do_cursor=1 ;;
+    codex) do_codex=1 ;;
+    opencode) do_opencode=1 ;;
+    gemini) do_gemini=1 ;;
     both) do_claude=1; do_cursor=1 ;;
     *) printf 'synapse: unknown --target %s\n' "$target" >&2; return 2 ;;
   esac
   [[ "$do_claude" -eq 1 ]] && setup_cmd claude-code "$dest_dir"
   [[ "$do_cursor" -eq 1 ]] && setup_cmd cursor "$dest_dir"
+  [[ "$do_codex" -eq 1 ]] && setup_cmd codex "$dest_dir"
+  [[ "$do_opencode" -eq 1 ]] && setup_cmd opencode "$dest_dir"
+  [[ "$do_gemini" -eq 1 ]] && setup_cmd gemini "$dest_dir"
 
   printf '\n== 3/5 hooks ==\n'
   if [[ "$do_hooks" -eq 1 && "$do_claude" -eq 1 ]]; then

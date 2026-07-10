@@ -32,6 +32,16 @@ except Exception:
         "concepts", "techniques", "projects", "skills",
         "sources", "analysis", "people", "organizations", "journal",
     )
+try:
+    from synapse_lib import split_fm_lines
+except Exception:
+    def split_fm_lines(text: str) -> tuple[list[str], str]:
+        if not text.startswith("---"):
+            return [], text
+        end = text.find("\n---", 3)
+        if end == -1:
+            return [], text
+        return text[3:end].lstrip("\n").splitlines(), text[end + 4:]
 
 
 def now_iso() -> str:
@@ -164,15 +174,6 @@ def find_page(stem: str) -> str | None:
     return None
 
 
-def split_fm(text: str) -> tuple[list[str], str]:
-    if not text.startswith("---"):
-        return [], text
-    end = text.find("\n---", 3)
-    if end == -1:
-        return [], text
-    return text[3:end].lstrip("\n").splitlines(), text[end + 4:]
-
-
 def set_fm_keys(fm: list[str], updates: dict[str, str]) -> list[str]:
     seen: set[str] = set()
     out = list(fm)
@@ -200,7 +201,7 @@ def cmd_update(args: argparse.Namespace) -> int:
         print(f"wiki: page not found: {stem}.md", file=sys.stderr)
         return 1
     text = open(path, encoding="utf-8").read()
-    fm, rest = split_fm(text)
+    fm, rest = split_fm_lines(text)
     if not fm:
         print(f"wiki: no frontmatter on {stem}.md", file=sys.stderr)
         return 1

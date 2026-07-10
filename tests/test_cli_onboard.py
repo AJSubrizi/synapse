@@ -146,11 +146,48 @@ class TestDoctor:
             shutil.rmtree(home)
 
 
+class TestSetupOpenCode:
+    def test_writes_opencode_json_and_instructions(self):
+        home, vault, env = make_env()
+        try:
+            run(env, "setup", "opencode", home)
+            assert os.path.isfile(os.path.join(home, "AGENTS.md"))
+            assert os.path.isfile(os.path.join(home, ".opencode", "synapse.md"))
+            cfg = os.path.join(home, "opencode.json")
+            assert os.path.isfile(cfg)
+            import json
+            data = json.load(open(cfg))
+            assert ".opencode/synapse.md" in data.get("instructions", [])
+            # idempotent
+            run(env, "setup", "opencode", home)
+            data2 = json.load(open(cfg))
+            assert data2["instructions"].count(".opencode/synapse.md") == 1
+        finally:
+            shutil.rmtree(home)
+
+
+class TestIndexIfStale:
+    def test_skips_when_fresh(self):
+        home, vault, env = make_env()
+        try:
+            run(env, "file", "concepts", "idx-probe",
+                "--summary", "Index if-stale probe note for rebuild tests.")
+            run(env, "index")
+            r = run(env, "index", "--if-stale")
+            assert "skip rebuild" in r.stdout or "fresh" in r.stdout
+            # mutate -> rebuild
+            open(os.path.join(vault, "concepts", "idx-probe.md"), "a").write("\nmore\n")
+            r2 = run(env, "index", "--if-stale")
+            assert "wrote" in r2.stdout
+        finally:
+            shutil.rmtree(home)
+
+
 if __name__ == "__main__":
     # Minimal runner (no pytest required — matches other tests/)
     failed = 0
     for cls in (TestSetupCursor, TestUpgrade, TestOnboardSeed, TestWikiUpdate,
-                TestIndexStale, TestDoctor):
+                TestIndexStale, TestDoctor, TestSetupOpenCode, TestIndexIfStale):
         inst = cls()
         for name in dir(inst):
             if not name.startswith("test_"):
