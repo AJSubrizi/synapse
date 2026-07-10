@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Install ships Cursor hooks** — `install.sh` syncs `cursor-session-start.sh` /
+  `cursor-stop.sh` into the vault and template stash (curl-install parity with upgrade).
+- **Cursor stop ≈ Claude stop-check** — dirty vault → lint follow-up; dirty project
+  with no vault notes → distill nudge (`followup_message`).
+- Clearer onboard hooks messaging; doctor flags missing Cursor hook scripts.
+  Engine **0.5.6**.
+
 - **Cursor loop hooks** — `setup cursor` wires `.cursor/hooks.json`
   (`sessionStart` bootstrap + `stop` distill nudge) to vault scripts.
 - **Session bootstrap** — `synapse <cli>` writes `_meta/.session-bootstrap.md` and

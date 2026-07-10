@@ -12,17 +12,17 @@
 | Distillation templates + `lint --strict` | Done (+ workflow self-correct + near-dup refuse) |
 | Skills deps / suggest / version field | Done (suggest now retrieval-backed) |
 | Git staleness, metrics, demo.sh, examples | Done |
-| `synapse onboard` / `upgrade` / rich `doctor` | Done (v0.5.5 engine) |
+| `synapse onboard` / `upgrade` / rich `doctor` | Done (v0.5.6 engine) |
 | Index fingerprint / stale detection | Done |
 | `wiki.py update` / `file update` | Done (+ near-dup guard on `new`) |
-| Cursor sessionStart/stop + CLI bootstrap | Done (0.5.5) |
+| Cursor sessionStart/stop + CLI bootstrap | Done (0.5.6 — install sync + stop lint) |
 
 ## Next (prioritized)
 
 | # | Theme | Why | Effort |
 |---|---|---|---|
 | 1 | Demo GIF/asciinema from `demo.sh` | Recorder ready (`scripts/record-demo.sh`); GIF asset optional | Low |
-| 2 | Codex / OpenCode / Gemini hook parity | **Partial** — deep setup/instructions; Cursor hooks shipped; others still CLI-limited | — |
+| 2 | Codex / OpenCode / Gemini hook parity | **Partial** — context + `synapse <cli>` bootstrap; native hooks still CLI-limited | — |
 | 3 | Shared `_meta/synapse_lib.py` | **Done** (0.5.1) | — |
 | 4 | Generated catalog section (keep human `index.md` hubs) | **Done** (`_meta/catalog.md`) | — |
 | 5 | Eval gates in CI (nDCG / answer floors) | **Done** (fixture floors) | — |

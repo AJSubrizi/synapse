@@ -1,0 +1,566 @@
+{
+  "root": "/Users/subrizi/Desktop/synapse",
+  "builtAt": 1783687122710,
+  "entries": [
+    {
+      "path": "AGENTS.md",
+      "kind": "file",
+      "hash": "a027d9a457e8"
+    },
+    {
+      "path": "benchmarks",
+      "kind": "dir",
+      "children": [
+        {
+          "path": "benchmarks/answer_eval.py",
+          "kind": "file",
+          "hash": "eb54022e9e09"
+        },
+        {
+          "path": "benchmarks/distillation_eval.py",
+          "kind": "file",
+          "hash": "bc64ae3feb9c"
+        },
+        {
+          "path": "benchmarks/locomo",
+          "kind": "dir",
+          "children": [
+            {
+              "path": "benchmarks/locomo/fixture.json",
+              "kind": "file",
+              "hash": "1192403f1b8c"
+            },
+            {
+              "path": "benchmarks/locomo/locomo10.json",
+              "kind": "file",
+              "hash": "8f78f899ab76"
+            },
+            {
+              "path": "benchmarks/locomo/README.md",
+              "kind": "file",
+              "hash": "9e872424738e"
+            },
+            {
+              "path": "benchmarks/locomo/results.json",
+              "kind": "file",
+              "hash": "406d5c149b27"
+            },
+            {
+              "path": "benchmarks/locomo/run_locomo.py",
+              "kind": "file",
+              "hash": "71da782d24dd"
+            }
+          ]
+        },
+        {
+          "path": "benchmarks/longmemeval",
+          "kind": "dir",
+          "children": [
+            {
+              "path": "benchmarks/longmemeval/fixture.json",
+              "kind": "file",
+              "hash": "de590a2e49b4"
+            },
+            {
+              "path": "benchmarks/longmemeval/longmemeval_s_cleaned.json",
+              "kind": "file",
+              "hash": "dbd793fffecc"
+            },
+            {
+              "path": "benchmarks/longmemeval/LongMemEval-main",
+              "kind": "dir",
+              "children": [
+                {
+                  "path": "benchmarks/longmemeval/LongMemEval-main/assets",
+                  "kind": "dir",
+                  "children": []
+                },
+                {
+                  "path": "benchmarks/longmemeval/LongMemEval-main/data",
+                  "kind": "dir",
+                  "children": []
+                },
+                {
+                  "path": "benchmarks/longmemeval/LongMemEval-main/LICENSE",
+                  "kind": "file",
+                  "hash": "af68a035d6bd"
+                },
+                {
+                  "path": "benchmarks/longmemeval/LongMemEval-main/README.md",
+                  "kind": "file",
+                  "hash": "e2664d3ef06b"
+                },
+                {
+                  "path": "benchmarks/longmemeval/LongMemEval-main/requirements-full.txt",
+                  "kind": "file",
+                  "hash": "7a22fab4c131"
+                },
+                {
+                  "path": "benchmarks/longmemeval/LongMemEval-main/requirements-lite.txt",
+                  "kind": "file",
+                  "hash": "963b85b86a74"
+                },
+                {
+                  "path": "benchmarks/longmemeval/LongMemEval-main/src",
+                  "kind": "dir",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "path": "benchmarks/longmemeval/README.md",
+              "kind": "file",
+              "hash": "0bb12e2d57e9"
+            },
+            {
+              "path": "benchmarks/longmemeval/results.json",
+              "kind": "file",
+              "hash": "ebfa3dc5f433"
+            },
+            {
+              "path": "benchmarks/longmemeval/run_longmemeval.py",
+              "kind": "file",
+              "hash": "30d877dc4e4b"
+            }
+          ]
+        },
+        {
+          "path": "benchmarks/retrieval_eval.py",
+          "kind": "file",
+          "hash": "288b2a2aacda"
+        }
+      ]
+    },
+    {
+      "path": "bin",
+      "kind": "dir",
+      "children": [
+        {
+          "path": "bin/synapse",
+          "kind": "file",
+          "hash": "e7c1087d2919"
+        }
+      ]
+    },
+    {
+      "path": "CHANGELOG.md",
+      "kind": "file",
+      "hash": "0c3b3506e493"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "kind": "file",
+      "hash": "6420af78476c"
+    },
+    {
+      "path": "docs",
+      "kind": "dir",
+      "children": [
+        {
+          "path": "docs/ARCHITECTURE.md",
+          "kind": "file",
+          "hash": "718f75eabbf0"
+        },
+        {
+          "path": "docs/assets",
+          "kind": "dir",
+          "children": [
+            {
+              "path": "docs/assets/synapse-demo.txt",
+              "kind": "file",
+              "hash": "cb45ba8aee78"
+            },
+            {
+              "path": "docs/assets/synapse-graph.png",
+              "kind": "file",
+              "hash": "8be9994826e0"
+            }
+          ]
+        },
+        {
+          "path": "docs/CUSTOM-LAYOUT.md",
+          "kind": "file",
+          "hash": "3318dd89c90e"
+        },
+        {
+          "path": "docs/demo.tape",
+          "kind": "file",
+          "hash": "b95fc4e93d7d"
+        },
+        {
+          "path": "docs/GITHUB.md",
+          "kind": "file",
+          "hash": "46ec779571bd"
+        },
+        {
+          "path": "docs/RTK.md",
+          "kind": "file",
+          "hash": "a2277423f53b"
+        }
+      ]
+    },
+    {
+      "path": "examples",
+      "kind": "dir",
+      "children": [
+        {
+          "path": "examples/distillation",
+          "kind": "dir",
+          "children": [
+            {
+              "path": "examples/distillation/after",
+              "kind": "dir",
+              "children": [
+                {
+                  "path": "examples/distillation/after/api-auth-bearer-header.md",
+                  "kind": "file",
+                  "hash": "c76b0b2e2f8b"
+                },
+                {
+                  "path": "examples/distillation/after/api-token-expiry.md",
+                  "kind": "file",
+                  "hash": "27e7039882be"
+                },
+                {
+                  "path": "examples/distillation/after/http-session-reuse.md",
+                  "kind": "file",
+                  "hash": "7ee0b14461d3"
+                }
+              ]
+            },
+            {
+              "path": "examples/distillation/before-raw-session.md",
+              "kind": "file",
+              "hash": "37e909180455"
+            },
+            {
+              "path": "examples/distillation/README.md",
+              "kind": "file",
+              "hash": "ca1e0b736767"
+            }
+          ]
+        },
+        {
+          "path": "examples/project-AGENTS.md",
+          "kind": "file",
+          "hash": "793f3925c532"
+        }
+      ]
+    },
+    {
+      "path": "install.sh",
+      "kind": "file",
+      "hash": "25d35c75e968"
+    },
+    {
+      "path": "LICENSE",
+      "kind": "file",
+      "hash": "130e6d873174"
+    },
+    {
+      "path": "README.md",
+      "kind": "file",
+      "hash": "fdce611c116f"
+    },
+    {
+      "path": "ROADMAP.md",
+      "kind": "file",
+      "hash": "25a8700d3fe6"
+    },
+    {
+      "path": "scripts",
+      "kind": "dir",
+      "children": [
+        {
+          "path": "scripts/capture-demo-text.sh",
+          "kind": "file",
+          "hash": "859b64c5ab7b"
+        },
+        {
+          "path": "scripts/check_eval_floors.py",
+          "kind": "file",
+          "hash": "d897acbc5185"
+        },
+        {
+          "path": "scripts/demo.sh",
+          "kind": "file",
+          "hash": "253aedb1fab1"
+        },
+        {
+          "path": "scripts/get.sh",
+          "kind": "file",
+          "hash": "2d13796ed247"
+        },
+        {
+          "path": "scripts/install-agent-wrapper.sh",
+          "kind": "file",
+          "hash": "27e620c55820"
+        },
+        {
+          "path": "scripts/record-demo.sh",
+          "kind": "file",
+          "hash": "9a51a1c6f579"
+        }
+      ]
+    },
+    {
+      "path": "templates",
+      "kind": "dir",
+      "children": [
+        {
+          "path": "templates/AGENTS.md",
+          "kind": "file",
+          "hash": "600780f4338c"
+        },
+        {
+          "path": "templates/CLAUDE.md",
+          "kind": "file",
+          "hash": "6c8538dbbed8"
+        },
+        {
+          "path": "templates/cursor",
+          "kind": "dir",
+          "children": [
+            {
+              "path": "templates/cursor/hooks.json",
+              "kind": "file",
+              "hash": "9831be75d486"
+            },
+            {
+              "path": "templates/cursor/synapse.mdc",
+              "kind": "file",
+              "hash": "3a7d2d3867c9"
+            }
+          ]
+        },
+        {
+          "path": "templates/GEMINI.md",
+          "kind": "file",
+          "hash": "80fc735e3621"
+        },
+        {
+          "path": "templates/opencode",
+          "kind": "dir",
+          "children": [
+            {
+              "path": "templates/opencode/synapse.md",
+              "kind": "file",
+              "hash": "021492ea561e"
+            }
+          ]
+        },
+        {
+          "path": "templates/vault",
+          "kind": "dir",
+          "children": [
+            {
+              "path": "templates/vault/_meta",
+              "kind": "dir",
+              "children": [
+                {
+                  "path": "templates/vault/_meta/categories",
+                  "kind": "file",
+                  "hash": "48a98c147dd9"
+                },
+                {
+                  "path": "templates/vault/_meta/dedup.py",
+                  "kind": "file",
+                  "hash": "16870db64eab"
+                },
+                {
+                  "path": "templates/vault/_meta/ENGINE_VERSION",
+                  "kind": "file",
+                  "hash": "9c88ba14fcd1"
+                },
+                {
+                  "path": "templates/vault/_meta/hooks",
+                  "kind": "dir",
+                  "children": []
+                },
+                {
+                  "path": "templates/vault/_meta/metrics.py",
+                  "kind": "file",
+                  "hash": "176ee41b92b6"
+                },
+                {
+                  "path": "templates/vault/_meta/pack.py",
+                  "kind": "file",
+                  "hash": "6a3846e7a3b9"
+                },
+                {
+                  "path": "templates/vault/_meta/search.py",
+                  "kind": "file",
+                  "hash": "f7c605f4a520"
+                },
+                {
+                  "path": "templates/vault/_meta/skill.py",
+                  "kind": "file",
+                  "hash": "47218bb81277"
+                },
+                {
+                  "path": "templates/vault/_meta/synapse_lib.py",
+                  "kind": "file",
+                  "hash": "3498454592c3"
+                },
+                {
+                  "path": "templates/vault/_meta/taxonomy.md",
+                  "kind": "file",
+                  "hash": "5135cf455f23"
+                },
+                {
+                  "path": "templates/vault/_meta/validate.py",
+                  "kind": "file",
+                  "hash": "44d53fa81c65"
+                },
+                {
+                  "path": "templates/vault/_meta/vault_config.py",
+                  "kind": "file",
+                  "hash": "fa90c1787051"
+                },
+                {
+                  "path": "templates/vault/_meta/wiki.py",
+                  "kind": "file",
+                  "hash": "b56b800e5c61"
+                },
+                {
+                  "path": "templates/vault/_meta/workflow.md",
+                  "kind": "file",
+                  "hash": "45e580f99a07"
+                }
+              ]
+            },
+            {
+              "path": "templates/vault/AGENTS.md",
+              "kind": "file",
+              "hash": "f13a555d08dc"
+            },
+            {
+              "path": "templates/vault/concepts",
+              "kind": "dir",
+              "children": [
+                {
+                  "path": "templates/vault/concepts/workflow.md",
+                  "kind": "file",
+                  "hash": "d353a5ecd940"
+                }
+              ]
+            },
+            {
+              "path": "templates/vault/hot.md",
+              "kind": "file",
+              "hash": "d24e0188765d"
+            },
+            {
+              "path": "templates/vault/index.md",
+              "kind": "file",
+              "hash": "17d1473009f3"
+            },
+            {
+              "path": "templates/vault/journal",
+              "kind": "dir",
+              "children": []
+            },
+            {
+              "path": "templates/vault/log.md",
+              "kind": "file",
+              "hash": "6308246f18f3"
+            },
+            {
+              "path": "templates/vault/projects",
+              "kind": "dir",
+              "children": []
+            },
+            {
+              "path": "templates/vault/raw",
+              "kind": "dir",
+              "children": [
+                {
+                  "path": "templates/vault/raw/README.md",
+                  "kind": "file",
+                  "hash": "e5e96a20b651"
+                }
+              ]
+            },
+            {
+              "path": "templates/vault/skills",
+              "kind": "dir",
+              "children": [
+                {
+                  "path": "templates/vault/skills/distill-after-work.md",
+                  "kind": "file",
+                  "hash": "db16fa572257"
+                },
+                {
+                  "path": "templates/vault/skills/file-into-vault.md",
+                  "kind": "file",
+                  "hash": "2a47dcfe96a6"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "tests",
+      "kind": "dir",
+      "children": [
+        {
+          "path": "tests/__init__.py",
+          "kind": "file",
+          "hash": "371ee6707277"
+        },
+        {
+          "path": "tests/test_answer_eval.py",
+          "kind": "file",
+          "hash": "ae27e49a8e82"
+        },
+        {
+          "path": "tests/test_cli_onboard.py",
+          "kind": "file",
+          "hash": "f7d39326e96b"
+        },
+        {
+          "path": "tests/test_dedup.py",
+          "kind": "file",
+          "hash": "31cf6a069a49"
+        },
+        {
+          "path": "tests/test_metrics.py",
+          "kind": "file",
+          "hash": "a171b7ae5165"
+        },
+        {
+          "path": "tests/test_pack_catalog.py",
+          "kind": "file",
+          "hash": "2fb8b7bbf419"
+        },
+        {
+          "path": "tests/test_search.py",
+          "kind": "file",
+          "hash": "8b0bc23d5a95"
+        },
+        {
+          "path": "tests/test_skill.py",
+          "kind": "file",
+          "hash": "01679a0eddfd"
+        },
+        {
+          "path": "tests/test_validate.py",
+          "kind": "file",
+          "hash": "b69a01159a0c"
+        },
+        {
+          "path": "tests/test_wiki.py",
+          "kind": "file",
+          "hash": "d7da3e85bd29"
+        }
+      ]
+    },
+    {
+      "path": "uninstall.sh",
+      "kind": "file",
+      "hash": "62fcdb9bf7ac"
+    }
+  ]
+}

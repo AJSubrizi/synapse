@@ -50,7 +50,8 @@ Do not run `install.sh` reinit blindly on a custom block — it writes default p
 ## Cursor / Claude Code / Codex / OpenCode / Gemini
 
 - **Cursor:** `synapse setup cursor` → `.cursor/rules/synapse.mdc` (`alwaysApply`) +
-  `.cursor/hooks.json` (`sessionStart` / `stop` → vault `_meta/hooks/cursor-*.sh`).
+  `.cursor/hooks.json` (`sessionStart` / `stop` → vault `_meta/hooks/cursor-*.sh`;
+  stop mirrors Claude lint-on-dirty + distill nudge via `followup_message`).
 - **Claude Code:** `synapse hooks install` (or `synapse onboard`) → SessionStart /
   UserPromptSubmit / Stop hooks in `~/.claude/settings.json`.
 - **Codex:** `synapse setup codex` → project `AGENTS.md` + optional `~/.codex/AGENTS.md`.

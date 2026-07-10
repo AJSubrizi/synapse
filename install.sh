@@ -81,6 +81,8 @@ sync_engine "$REPO_DIR/templates/vault/_meta/ENGINE_VERSION" "$BRAIN_VAULT/_meta
 sync_engine "$REPO_DIR/templates/vault/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/stop-check.sh"
 sync_engine "$REPO_DIR/templates/vault/_meta/hooks/session-enforce.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh"
 sync_engine "$REPO_DIR/templates/vault/_meta/hooks/prompt-retrieve.sh" "$BRAIN_VAULT/_meta/hooks/prompt-retrieve.sh"
+sync_engine "$REPO_DIR/templates/vault/_meta/hooks/cursor-session-start.sh" "$BRAIN_VAULT/_meta/hooks/cursor-session-start.sh"
+sync_engine "$REPO_DIR/templates/vault/_meta/hooks/cursor-stop.sh" "$BRAIN_VAULT/_meta/hooks/cursor-stop.sh"
 copy_if_missing "$REPO_DIR/templates/vault/concepts/workflow.md" "$BRAIN_VAULT/concepts/workflow.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/distill-after-work.md" "$BRAIN_VAULT/skills/distill-after-work.md"
 copy_if_missing "$REPO_DIR/templates/vault/skills/file-into-vault.md" "$BRAIN_VAULT/skills/file-into-vault.md"
@@ -88,7 +90,9 @@ copy_if_missing "$REPO_DIR/templates/vault/skills/file-into-vault.md" "$BRAIN_VA
 chmod +x "$BRAIN_VAULT/_meta/validate.py" "$BRAIN_VAULT/_meta/dedup.py" "$BRAIN_VAULT/_meta/skill.py" \
          "$BRAIN_VAULT/_meta/search.py" "$BRAIN_VAULT/_meta/wiki.py" "$BRAIN_VAULT/_meta/metrics.py" 2>/dev/null || true
 chmod +x "$BRAIN_VAULT/_meta/hooks/stop-check.sh" "$BRAIN_VAULT/_meta/hooks/session-enforce.sh" \
-         "$BRAIN_VAULT/_meta/hooks/prompt-retrieve.sh" 2>/dev/null || true
+         "$BRAIN_VAULT/_meta/hooks/prompt-retrieve.sh" \
+         "$BRAIN_VAULT/_meta/hooks/cursor-session-start.sh" \
+         "$BRAIN_VAULT/_meta/hooks/cursor-stop.sh" 2>/dev/null || true
 
 copy_if_missing "$REPO_DIR/templates/AGENTS.md" "$HOME/AGENTS.md"
 copy_if_missing "$REPO_DIR/templates/CLAUDE.md" "$HOME/CLAUDE.md"
@@ -104,6 +108,7 @@ sync_engine "$REPO_DIR/templates/AGENTS.md" "$BRAIN_ROOT/templates/AGENTS.md"
 sync_engine "$REPO_DIR/templates/CLAUDE.md" "$BRAIN_ROOT/templates/CLAUDE.md"
 sync_engine "$REPO_DIR/templates/GEMINI.md" "$BRAIN_ROOT/templates/GEMINI.md"
 sync_engine "$REPO_DIR/templates/cursor/synapse.mdc" "$BRAIN_ROOT/templates/cursor/synapse.mdc"
+sync_engine "$REPO_DIR/templates/cursor/hooks.json" "$BRAIN_ROOT/templates/cursor/hooks.json"
 sync_engine "$REPO_DIR/templates/opencode/synapse.md" "$BRAIN_ROOT/templates/opencode/synapse.md"
 # Full engine tree for upgrade_cmd
 for f in validate.py dedup.py skill.py search.py wiki.py metrics.py vault_config.py \
@@ -113,7 +118,8 @@ for f in validate.py dedup.py skill.py search.py wiki.py metrics.py vault_config
 done
 sync_engine "$REPO_DIR/templates/vault/_meta/synapse_lib.py" "$BRAIN_VAULT/_meta/synapse_lib.py"
 sync_engine "$REPO_DIR/templates/vault/_meta/pack.py" "$BRAIN_VAULT/_meta/pack.py"
-for f in session-enforce.sh prompt-retrieve.sh stop-check.sh; do
+for f in session-enforce.sh prompt-retrieve.sh stop-check.sh \
+         cursor-session-start.sh cursor-stop.sh; do
   sync_engine "$REPO_DIR/templates/vault/_meta/hooks/$f" "$BRAIN_ROOT/templates/vault/_meta/hooks/$f"
 done
 for f in distill-after-work.md file-into-vault.md; do

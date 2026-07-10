@@ -223,6 +223,48 @@ class TestFileNearDup:
             shutil.rmtree(home)
 
 
+class TestSessionBootstrap:
+    def test_wrapper_writes_bootstrap(self):
+        home, vault, env = make_env()
+        try:
+            # Hit the synapse <cli> wrapper path (not a built-in subcommand)
+            r = run(env, "true", check=False)
+            assert r.returncode == 0, r.stderr
+            boot = os.path.join(vault, "_meta", ".session-bootstrap.md")
+            assert os.path.isfile(boot), "missing session bootstrap"
+            body = open(boot).read()
+            assert "Synapse session bootstrap" in body
+            assert vault in body or "Vault:" in body
+        finally:
+            shutil.rmtree(home)
+
+
+class TestCursorStop:
+    def test_emits_lint_followup_when_vault_dirty(self):
+        home, vault, env = make_env()
+        try:
+            script = os.path.join(vault, "_meta", "hooks", "cursor-stop.sh")
+            assert os.path.isfile(script)
+            subprocess.run(["git", "init"], cwd=vault, check=True, capture_output=True)
+            # Broken frontmatter → validate fails
+            bad = os.path.join(vault, "concepts", "broken-note.md")
+            os.makedirs(os.path.dirname(bad), exist_ok=True)
+            open(bad, "w").write("# Broken\nno frontmatter\n")
+            subprocess.run(["git", "add", "."], cwd=vault, check=True, capture_output=True)
+            # unstaged change so is_dirty sees it
+            open(bad, "a").write("more\n")
+            r = subprocess.run(
+                ["bash", script],
+                input='{"status":"completed","loop_count":0,"cwd":"%s"}' % home,
+                capture_output=True, text=True, env=env,
+            )
+            assert r.returncode == 0, r.stderr
+            assert "followup_message" in r.stdout
+            assert "quality" in r.stdout.lower() or "vault" in r.stdout.lower()
+        finally:
+            shutil.rmtree(home)
+
+
 class TestAutoIndexOnQuery:
     def test_query_builds_index_when_missing(self):
         home, vault, env = make_env()
@@ -244,7 +286,8 @@ if __name__ == "__main__":
     failed = 0
     for cls in (TestSetupCursor, TestUpgrade, TestOnboardSeed, TestWikiUpdate,
                 TestIndexStale, TestDoctor, TestSetupOpenCode, TestIndexIfStale,
-                TestFileNearDup, TestAutoIndexOnQuery):
+                TestFileNearDup, TestSessionBootstrap, TestCursorStop,
+                TestAutoIndexOnQuery):
         inst = cls()
         for name in dir(inst):
             if not name.startswith("test_"):

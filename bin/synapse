@@ -185,6 +185,10 @@ doctor() {
   fi
   if [[ -n "$cursor_hooks" ]]; then
     printf 'ok   Cursor hooks (%s)\n' "$cursor_hooks"
+    if [[ ! -f "$BRAIN_VAULT/_meta/hooks/cursor-session-start.sh" ]]; then
+      printf 'miss Cursor hook scripts in vault  (run: %s upgrade)\n' "$CMD_NAME"
+      rc=1
+    fi
   elif [[ -n "$cursor_rule" ]]; then
     printf 'warn Cursor hooks missing  (re-run: %s setup cursor)\n' "$CMD_NAME"
   fi
@@ -964,8 +968,12 @@ onboard_cmd() {
   printf '\n== 3/5 hooks ==\n'
   if [[ "$do_hooks" -eq 1 && "$do_claude" -eq 1 ]]; then
     hooks_cmd install || true
+  elif [[ "$do_hooks" -eq 1 && "$do_cursor" -eq 1 ]]; then
+    printf 'synapse: Cursor hooks wired in setup (sessionStart + stop); Claude hooks skipped (not a target)\n'
+  elif [[ "$do_hooks" -eq 0 ]]; then
+    printf 'synapse: skip hooks (--no-hooks)\n'
   else
-    printf 'synapse: skip hooks\n'
+    printf 'synapse: skip Claude hooks (no Claude target); Cursor/Codex use setup context files\n'
   fi
 
   printf '\n== 4/5 seed ==\n'

@@ -108,7 +108,7 @@ Codex, Gemini, and OpenCode get the same `ingest`/`query`/`file`/`lint` commands
 honor-system Phase 0 via their context files. **Cursor** also gets mechanical hooks:
 
 - **`synapse setup cursor`** — `.cursor/rules/synapse.mdc` **and** `.cursor/hooks.json`
-  (`sessionStart` injects vault bootstrap; `stop` nudges distillation once).
+  (`sessionStart` injects vault bootstrap; `stop` runs lint-on-dirty + distill nudge).
 - **`synapse <cli>`** — writes `_meta/.session-bootstrap.md` and exports
   `SYNAPSE_BOOTSTRAP_PATH` for wrapped agents.
 
