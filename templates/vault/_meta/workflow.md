@@ -50,8 +50,9 @@ worth remembering.
 1. If the knowledge came from an external source, `synapse ingest <path-or-url>` first so
    the source is preserved (immutable) under `raw/` with provenance.
 2. **Search before create:** `synapse search "<topic>"` (or `synapse query`). If a note
-   already covers the idea, update it (`synapse` file helpers / bump `updated`) instead of
-   adding a near-duplicate.
+   already covers the idea, update it (`synapse file update <stem>`) instead of adding a
+   near-duplicate. `synapse file` / `wiki.py new` also refuse near-duplicate
+   title/summary matches unless `--force`.
 3. Split knowledge into atomic notes; classify into the right category — core
    `concepts/` `techniques/` `projects/` `skills/`, or an optional one (see
    `_meta/categories`); cross-link.

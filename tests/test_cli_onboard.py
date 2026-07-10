@@ -54,6 +54,18 @@ class TestSetupCursor:
             body = open(rule).read()
             assert "alwaysApply: true" in body
             assert "synapse query" in body
+            hooks = os.path.join(home, ".cursor", "hooks.json")
+            assert os.path.isfile(hooks), f"missing hooks.json\n{r.stdout}"
+            import json
+            data = json.load(open(hooks))
+            cmds = " ".join(
+                e.get("command", "")
+                for ev in ("sessionStart", "stop")
+                for e in data.get("hooks", {}).get(ev, [])
+            )
+            assert "cursor-session-start" in cmds
+            assert "cursor-stop" in cmds
+            assert os.path.isfile(os.path.join(vault, "_meta", "hooks", "cursor-session-start.sh"))
         finally:
             shutil.rmtree(home)
 
@@ -72,6 +84,7 @@ class TestUpgrade:
             assert os.path.isfile(os.path.join(vault, "_meta", "wiki.py"))
             assert os.path.isfile(os.path.join(vault, "_meta", "synapse_lib.py"))
             assert os.path.isfile(os.path.join(vault, "_meta", "pack.py"))
+            assert os.path.isfile(os.path.join(vault, "_meta", "hooks", "cursor-session-start.sh"))
         finally:
             shutil.rmtree(home)
 
@@ -183,6 +196,33 @@ class TestIndexIfStale:
             shutil.rmtree(home)
 
 
+class TestFileNearDup:
+    def test_refuses_near_duplicate_unless_force(self):
+        home, vault, env = make_env()
+        try:
+            run(env, "file", "concepts", "Bearer Token Auth",
+                "--summary", "How Authorization Bearer headers work in APIs.")
+            # Near title should be refused
+            r = run(env, "file", "concepts", "Bearer Token Auth Guide",
+                    "--summary", "Slightly different summary about bearer auth.", check=False)
+            assert r.returncode != 0
+            assert "near-duplicate" in (r.stderr + r.stdout).lower() or "refuse" in (r.stderr + r.stdout).lower()
+            # Force creates
+            r2 = run(env, "file", "concepts", "Completely Different Topic XYZ",
+                     "--summary", "Unrelated note that should create cleanly.")
+            assert "filed" in r2.stdout.lower() or "concepts/" in r2.stdout
+            # Exact stem collision
+            r3 = run(env, "file", "concepts", "Bearer Token Auth",
+                     "--summary", "Again the same title.", check=False)
+            assert r3.returncode != 0
+            # Force near-dup title
+            r4 = run(env, "file", "concepts", "Bearer Token Auth Guide",
+                     "--summary", "Forced near-dup create.", "--force")
+            assert "filed" in r4.stdout.lower() or "concepts/" in r4.stdout
+        finally:
+            shutil.rmtree(home)
+
+
 class TestAutoIndexOnQuery:
     def test_query_builds_index_when_missing(self):
         home, vault, env = make_env()
@@ -204,7 +244,7 @@ if __name__ == "__main__":
     failed = 0
     for cls in (TestSetupCursor, TestUpgrade, TestOnboardSeed, TestWikiUpdate,
                 TestIndexStale, TestDoctor, TestSetupOpenCode, TestIndexIfStale,
-                TestAutoIndexOnQuery):
+                TestFileNearDup, TestAutoIndexOnQuery):
         inst = cls()
         for name in dir(inst):
             if not name.startswith("test_"):

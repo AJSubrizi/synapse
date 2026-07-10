@@ -11,6 +11,12 @@ queried before work and grown after meaningful sessions.
 Vault path (resolved by the CLI; override with `BRAIN_VAULT`):
 `$BRAIN_VAULT` — typically `~/Synapse/vault`.
 
+## Session bootstrap
+
+If Cursor `sessionStart` injected `<synapse-memory>`, treat it as Phase 0 context.
+Also read `$SYNAPSE_BOOTSTRAP_PATH` (usually `$BRAIN_VAULT/_meta/.session-bootstrap.md`)
+when present — written by `synapse <cli>` wrappers.
+
 ## Every turn (Phase 0)
 
 Before planning or editing on a non-trivial request:
@@ -29,7 +35,7 @@ not re-derive:
 
 1. Prefer update over duplicate: `synapse search "<topic>"` first.
 2. File new knowledge: `synapse file <category> <title>` then fill the body, **or**
-   update an existing note and bump `updated`.
+   `synapse file update <stem>`. Near-duplicates are refused unless `--force`.
 3. Cross-link with at least one `[[wikilink]]`; update `index.md` / `hot.md` / `log.md`
    if the CLI did not.
 4. Run `synapse lint --strict` and fix every warning, then re-run until clean.

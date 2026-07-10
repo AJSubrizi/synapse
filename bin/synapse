@@ -177,6 +177,17 @@ doctor() {
   else
     printf 'warn Cursor rule missing  (run: %s setup cursor)\n' "$CMD_NAME"
   fi
+  local cursor_hooks=""
+  if [[ -f "$PWD/.cursor/hooks.json" ]] && grep -q 'cursor-session-start' "$PWD/.cursor/hooks.json" 2>/dev/null; then
+    cursor_hooks="$PWD/.cursor/hooks.json"
+  elif [[ -f "$HOME/.cursor/hooks.json" ]] && grep -q 'cursor-session-start' "$HOME/.cursor/hooks.json" 2>/dev/null; then
+    cursor_hooks="$HOME/.cursor/hooks.json"
+  fi
+  if [[ -n "$cursor_hooks" ]]; then
+    printf 'ok   Cursor hooks (%s)\n' "$cursor_hooks"
+  elif [[ -n "$cursor_rule" ]]; then
+    printf 'warn Cursor hooks missing  (re-run: %s setup cursor)\n' "$CMD_NAME"
+  fi
   # Codex
   if [[ -f "$PWD/AGENTS.md" ]] && grep -q 'synapse query' "$PWD/AGENTS.md" 2>/dev/null; then
     printf 'ok   Codex/OpenCode AGENTS.md (project)\n'
@@ -438,9 +449,10 @@ file_cmd() {
     return 0
   fi
   if [[ "${1:-}" == "" || "${2:-}" == "" ]]; then
-    printf 'usage: %s file <category> <title> [--summary S] [--tags a,b] [--source SRC] [--link PAGE]\n' "$CMD_NAME"
+    printf 'usage: %s file <category> <title> [--summary S] [--tags a,b] [--source SRC] [--link PAGE] [--force]\n' "$CMD_NAME"
     printf '       %s file update <stem> [--summary S] [--tags a,b] [--link PAGE]\n' "$CMD_NAME"
     printf 'categories: concepts people organizations techniques sources analysis skills projects journal\n'
+    printf 'note: refuses near-duplicates unless --force; prefer `file update <stem>`\n'
     return 2
   fi
   if [[ ! -f "$w" ]]; then
@@ -551,7 +563,11 @@ setup_cmd() {
     fi
     printf '  claude-code   %s\n' "$mark"
     # cursor
-    if [[ -f "$dest_dir/.cursor/rules/synapse.mdc" ]]; then mark="configured (.cursor/rules/synapse.mdc)"
+    if [[ -f "$dest_dir/.cursor/rules/synapse.mdc" ]]; then
+      mark="configured (.cursor/rules/synapse.mdc)"
+      if [[ -f "$dest_dir/.cursor/hooks.json" ]] && grep -q 'cursor-session-start' "$dest_dir/.cursor/hooks.json" 2>/dev/null; then
+        mark="$mark + hooks"
+      fi
     elif [[ -f "$dest_dir/AGENTS.md" ]]; then mark="partial (AGENTS.md only — re-run setup cursor)"
     else mark="not set"; fi
     printf '  cursor        %s\n' "$mark"
@@ -630,6 +646,54 @@ EOF
       if [[ ! -f "$dest_dir/AGENTS.md" && -f "$templates/AGENTS.md" ]]; then
         cp "$templates/AGENTS.md" "$dest_dir/AGENTS.md"
         printf 'synapse: installed AGENTS.md -> %s/AGENTS.md\n' "$dest_dir"
+      fi
+      # Ensure Cursor hook scripts exist in the vault, then wire .cursor/hooks.json
+      mkdir -p "$BRAIN_VAULT/_meta/hooks"
+      local hs
+      for hs in cursor-session-start.sh cursor-stop.sh; do
+        if [[ -f "$templates/vault/_meta/hooks/$hs" ]]; then
+          cp "$templates/vault/_meta/hooks/$hs" "$BRAIN_VAULT/_meta/hooks/$hs"
+          chmod +x "$BRAIN_VAULT/_meta/hooks/$hs" 2>/dev/null || true
+        fi
+      done
+      local start_hook="$BRAIN_VAULT/_meta/hooks/cursor-session-start.sh"
+      local stop_hook="$BRAIN_VAULT/_meta/hooks/cursor-stop.sh"
+      if [[ -f "$start_hook" && -f "$stop_hook" ]]; then
+        mkdir -p "$dest_dir/.cursor"
+        DEST="$dest_dir" START="$start_hook" STOP="$stop_hook" python3 - <<'PY'
+import json, os
+dest = os.environ["DEST"]
+path = os.path.join(dest, ".cursor", "hooks.json")
+data = {"version": 1, "hooks": {}}
+if os.path.isfile(path):
+    try:
+        data = json.load(open(path, encoding="utf-8"))
+    except Exception as exc:
+        print(f"synapse: cannot parse {path}: {exc} — rewriting Synapse entries", flush=True)
+        data = {"version": 1, "hooks": {}}
+data.setdefault("version", 1)
+hooks = data.setdefault("hooks", {})
+start_cmd = os.environ["START"]
+stop_cmd = os.environ["STOP"]
+
+def keep_non_synapse(entries):
+    out = []
+    for e in entries or []:
+        cmd = e.get("command", "") if isinstance(e, dict) else ""
+        if "cursor-session-start" in cmd or "cursor-stop" in cmd:
+            continue
+        out.append(e)
+    return out
+
+hooks["sessionStart"] = keep_non_synapse(hooks.get("sessionStart")) + [{"command": start_cmd}]
+hooks["stop"] = keep_non_synapse(hooks.get("stop")) + [{"command": stop_cmd, "loop_limit": 1}]
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh, indent=2)
+    fh.write("\n")
+print(f"synapse: wired Cursor sessionStart/stop hooks -> {path}")
+PY
+      else
+        printf 'synapse: Cursor hook scripts missing in vault (run: %s upgrade)\n' "$CMD_NAME" >&2
       fi
       printf 'vault: %s\n' "$BRAIN_VAULT"
       return 0
@@ -748,7 +812,8 @@ upgrade_cmd() {
       printf 'synapse: upgraded _meta/%s\n' "$f"
     fi
   done
-  for f in session-enforce.sh prompt-retrieve.sh stop-check.sh; do
+  for f in session-enforce.sh prompt-retrieve.sh stop-check.sh \
+           cursor-session-start.sh cursor-stop.sh; do
     if [[ -f "$src_meta/hooks/$f" ]]; then
       cp "$src_meta/hooks/$f" "$BRAIN_VAULT/_meta/hooks/$f"
       chmod +x "$BRAIN_VAULT/_meta/hooks/$f" 2>/dev/null || true
@@ -1169,5 +1234,38 @@ if [[ "${BRAIN_LOADED:-0}" != "1" && "${BRAIN_QUIET:-0}" != "1" ]]; then
 fi
 
 export BRAIN_LOADED=1
+
+# Session bootstrap for wrapped CLIs (claude/codex/gemini/…): write a short vault
+# snapshot agents can read via SYNAPSE_BOOTSTRAP_PATH. Skip with SYNAPSE_NO_BOOTSTRAP=1.
+if [[ "${SYNAPSE_NO_BOOTSTRAP:-0}" != "1" ]] && command -v python3 >/dev/null 2>&1 \
+   && [[ -d "$BRAIN_VAULT/_meta" ]]; then
+  export SYNAPSE_BOOTSTRAP_PATH="${SYNAPSE_BOOTSTRAP_PATH:-$BRAIN_VAULT/_meta/.session-bootstrap.md}"
+  META="$BRAIN_VAULT/_meta" VAULT="$BRAIN_VAULT" OUT="$SYNAPSE_BOOTSTRAP_PATH" python3 - <<'PY' 2>/dev/null || true
+import os
+meta, vault, out = os.environ["META"], os.environ["VAULT"], os.environ["OUT"]
+lines = [
+    "# Synapse session bootstrap",
+    "",
+    f"Vault: `{vault}`",
+    "",
+    "Prefer these notes over re-deriving. Run `synapse query <topic>` each turn;",
+    "distill after meaningful work (`synapse file` / `file update`, then `lint --strict`).",
+    "",
+]
+hot = os.path.join(vault, "hot.md")
+if os.path.isfile(hot):
+    lines += ["## hot.md", "", open(hot, encoding="utf-8").read().strip()[:2000], ""]
+for path, title in (
+    (os.path.join(meta, "digest.md"), "digest"),
+    (os.path.join(meta, "catalog.md"), "catalog"),
+):
+    if os.path.isfile(path):
+        body = open(path, encoding="utf-8").read().strip()
+        lines += [f"## {title} (head)", "", "\n".join(body.splitlines()[:40]), ""]
+        break
+os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+open(out, "w", encoding="utf-8").write("\n".join(lines).rstrip() + "\n")
+PY
+fi
 
 exec "$cmd" "$@"

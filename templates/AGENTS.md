@@ -8,13 +8,15 @@ wiki, and a schema in `$BRAIN_VAULT/AGENTS.md`. Operations: ingest → query →
 **Phase 0 — before meaningful work**
 
 1. `synapse status` (expect usable vault paths).
-2. `synapse query "<user topic>"` (falls back to lexical search if no index).
-3. Read `summary:` on top hits; open bodies only when needed. Cite `[[page-name]]`.
+2. If `$SYNAPSE_BOOTSTRAP_PATH` exists, skim it (hot + digest head).
+3. `synapse query "<user topic>"` (falls back to lexical search if no index).
+4. Read `summary:` on top hits; open bodies only when needed. Cite `[[page-name]]`.
 
 **Phase 2 — after meaningful work**
 
 1. Search first: `synapse search "<topic>"` — prefer update over near-duplicates.
-2. File or refresh: `synapse file <category> <title>` or `synapse file update <stem>`.
+2. File or refresh: `synapse file <category> <title>` or `synapse file update <stem>`
+   (`file` refuses near-dups unless `--force`).
 3. `synapse lint --strict` → fix every finding → re-run until clean.
 
 **Meaningful work** = new pattern/decision, non-obvious fix, knowledge not in vault, infra

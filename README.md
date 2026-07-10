@@ -104,15 +104,20 @@ the mechanism just differs by how much the tool exposes:
   - **UserPromptSubmit** — rank the wiki against *every* prompt and inject the top notes (instant, no model) so memory resurfaces each turn.
   - **Stop** — if notes changed, run `synapse lint` and block on errors; if you changed code but wrote no notes, nudge to distill. (Silence with `SYNAPSE_DISTILL_NUDGE=0`.)
 
-Codex, Gemini, OpenCode and Cursor get the same `ingest`/`query`/`file`/`lint` commands and
-the Phase-0 loop today; equivalent per-turn hooks land as each CLI exposes them.
+Codex, Gemini, and OpenCode get the same `ingest`/`query`/`file`/`lint` commands plus
+honor-system Phase 0 via their context files. **Cursor** also gets mechanical hooks:
+
+- **`synapse setup cursor`** — `.cursor/rules/synapse.mdc` **and** `.cursor/hooks.json`
+  (`sessionStart` injects vault bootstrap; `stop` nudges distillation once).
+- **`synapse <cli>`** — writes `_meta/.session-bootstrap.md` and exports
+  `SYNAPSE_BOOTSTRAP_PATH` for wrapped agents.
 
 ## Commands
 
 ```bash
 synapse ingest SRC      # record a file/URL under raw/ + create a linked sources/ page
 synapse query QUERY     # ranked retrieval (BM25 by default, or a built index)
-synapse file CAT TITLE  # file knowledge back as a wiki page (frontmatter + index + log)
+synapse file CAT TITLE  # file knowledge back (refuses near-dups unless --force)
 synapse file update S   # refresh an existing page (summary/tags/link + bump updated)
 synapse lint [--strict] # health-check the wiki (alias: check); --git-staleness for git-based age
 synapse metrics         # loop metrics: size, growth, activity, retrieval, stall signal
@@ -129,7 +134,8 @@ synapse status | doctor | env | digest | index | reinit
 
 `brain` stays a symlink to `synapse` for backward compatibility.
 
-`synapse setup cursor` writes `.cursor/rules/synapse.mdc` (always-on continuous loop).
+`synapse setup cursor` writes `.cursor/rules/synapse.mdc` and wires
+`.cursor/hooks.json` (sessionStart + stop) to the vault.
 `synapse setup` with no args lists which targets are already configured.
 `synapse query --all "<q>"` fuses ranked hits across named vaults.
 

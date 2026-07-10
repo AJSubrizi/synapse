@@ -49,7 +49,8 @@ Do not run `install.sh` reinit blindly on a custom block — it writes default p
 
 ## Cursor / Claude Code / Codex / OpenCode / Gemini
 
-- **Cursor:** `synapse setup cursor` → `.cursor/rules/synapse.mdc` (`alwaysApply`).
+- **Cursor:** `synapse setup cursor` → `.cursor/rules/synapse.mdc` (`alwaysApply`) +
+  `.cursor/hooks.json` (`sessionStart` / `stop` → vault `_meta/hooks/cursor-*.sh`).
 - **Claude Code:** `synapse hooks install` (or `synapse onboard`) → SessionStart /
   UserPromptSubmit / Stop hooks in `~/.claude/settings.json`.
 - **Codex:** `synapse setup codex` → project `AGENTS.md` + optional `~/.codex/AGENTS.md`.
@@ -57,8 +58,8 @@ Do not run `install.sh` reinit blindly on a custom block — it writes default p
   into `opencode.json` `instructions`.
 - **Gemini:** `synapse setup gemini` → `GEMINI.md` with the continuous loop.
 
-Prefer `synapse onboard` (or `--target all`) for a one-shot multi-agent setup with
-seeded demo notes.
+`synapse <cli>` also writes `_meta/.session-bootstrap.md` (`SYNAPSE_BOOTSTRAP_PATH`).
+`synapse file` refuses near-duplicate titles unless `--force` (prefer `file update`).
 
 See `templates/vault/_meta/hooks/` for Claude hook scripts.
 

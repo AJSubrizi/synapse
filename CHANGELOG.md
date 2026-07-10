@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Cursor loop hooks** — `setup cursor` wires `.cursor/hooks.json`
+  (`sessionStart` bootstrap + `stop` distill nudge) to vault scripts.
+- **Session bootstrap** — `synapse <cli>` writes `_meta/.session-bootstrap.md` and
+  exports `SYNAPSE_BOOTSTRAP_PATH` for wrapped agents.
+- **Distillation guardrails** — `synapse file` / `wiki.py new` refuse near-duplicate
+  title/summary matches unless `--force`; prefer `file update <stem>`.
+- Doctor reports Cursor hooks; agent templates mention bootstrap + `--force`.
+  Engine **0.5.5**.
+
 - **Auto-index on query** — missing or stale `retrieval.json` is rebuilt on
   `synapse query` (BM25 by default) so recall stays truthful without a manual step.
 - **Flock-safe wiki writes** — `index.md` / `log.md` updates take an exclusive lock

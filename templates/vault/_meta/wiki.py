@@ -20,6 +20,7 @@ import datetime as dt
 import os
 import re
 import sys
+from difflib import SequenceMatcher
 
 VAULT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -62,6 +63,50 @@ def page_exists(stem: str) -> bool:
         if os.path.isfile(os.path.join(VAULT, cat, f"{stem}.md")):
             return True
     return False
+
+
+def near_duplicates(title: str, summary: str, threshold: float = 0.72) -> list[tuple[float, str, str]]:
+    """Return (score, relpath, stem) for notes with a near-matching title/stem.
+
+    Title + stem only (not default 'Notes on …' summaries) so empty stubs do not
+    false-positive. Callers refuse create unless --force.
+    """
+    title_l = title.lower().strip()
+    stem_new = slugify(title)
+    hits: list[tuple[float, str, str]] = []
+    for cat in CATEGORIES:
+        d = os.path.join(VAULT, cat)
+        if not os.path.isdir(d):
+            continue
+        for name in os.listdir(d):
+            if not name.endswith(".md"):
+                continue
+            path = os.path.join(d, name)
+            try:
+                text = open(path, encoding="utf-8").read()
+            except OSError:
+                continue
+            fm_lines, _ = split_fm_lines(text)
+            fm: dict[str, str] = {}
+            for line in fm_lines:
+                if ":" in line and not line.startswith(" "):
+                    k, _, v = line.partition(":")
+                    fm[k.strip()] = v.strip()
+            stem = name[:-3]
+            existing_title = (fm.get("title") or stem).lower().strip()
+            title_sim = SequenceMatcher(None, title_l, existing_title).ratio() if title_l else 0.0
+            stem_sim = SequenceMatcher(None, stem_new, stem).ratio()
+            score = max(title_sim, stem_sim)
+            # Optional: if caller passed a real summary, boost when both title and summary match
+            existing_sum = (fm.get("summary") or "").lower().strip()
+            if summary and len(summary) >= 20 and existing_sum and not existing_sum.startswith("notes on "):
+                sum_sim = SequenceMatcher(None, summary.lower(), existing_sum).ratio()
+                if title_sim >= 0.5 and sum_sim >= 0.7:
+                    score = max(score, 0.55 * title_sim + 0.45 * sum_sim)
+            if score >= threshold:
+                hits.append((score, os.path.relpath(path, VAULT), stem))
+    hits.sort(reverse=True)
+    return hits[:5]
 
 
 def write_page(path: str, fm: dict[str, str], link: str | None, source: str | None) -> None:
@@ -163,11 +208,22 @@ def cmd_new(args: argparse.Namespace) -> int:
     stem = slugify(args.title)
     if page_exists(stem):
         print(f"wiki: page already exists: {stem}.md (not overwriting)", file=sys.stderr)
+        print(f"       prefer: synapse file update {stem}", file=sys.stderr)
         return 1
     tags = [t.strip().lower() for t in (args.tags or "knowledge").split(",") if t.strip()]
     summary = args.summary or f"Notes on {args.title}."
     if len(summary) < 10:
         summary = (summary + " — fill in the one-line gist.")[:240]
+    # Search-before-create: refuse near-duplicates unless --force
+    if not getattr(args, "force", False):
+        dups = near_duplicates(args.title, summary)
+        if dups:
+            print("wiki: near-duplicate(s) found — refuse create (pass --force to override):",
+                  file=sys.stderr)
+            for score, rel, existing in dups:
+                print(f"  ~ {score:.2f}  {rel}  (update: synapse file update {existing})",
+                      file=sys.stderr)
+            return 1
     sources = f"[{args.source}]" if args.source else "[]"
     ts = now_iso()
     fm = {
@@ -256,6 +312,8 @@ def main() -> int:
     p.add_argument("--source", default="")
     p.add_argument("--link", default="")
     p.add_argument("--op", default="FILE", help="log verb (INGEST, FILE, ...)")
+    p.add_argument("--force", action="store_true",
+                   help="create even when a near-duplicate title/summary exists")
     u = sub.add_parser("update", help="refresh an existing page (summary/tags/link/updated)")
     u.add_argument("--stem", default="", help="page stem (filename without .md)")
     u.add_argument("--title", default="", help="title to slugify if --stem omitted")
