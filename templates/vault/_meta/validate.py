@@ -21,8 +21,13 @@ except Exception:
         "concepts", "techniques", "projects", "skills",
         "sources", "analysis", "people", "organizations", "journal",
     )
+try:
+    from synapse_lib import parse_tags as _lib_parse_tags, split_frontmatter as _lib_split_fm
+except Exception:
+    _lib_parse_tags = _lib_split_fm = None
+
 REQUIRED = ("title", "category", "tags", "sources", "summary", "created", "updated")
-SPECIAL = {"index", "log", "hot", "AGENTS", "digest"}
+SPECIAL = {"index", "log", "hot", "AGENTS", "digest", "catalog"}
 
 # Strict-mode heuristics for distillation quality (warnings only).
 SUMMARY_MAX = 240          # a summary is a one-liner, not a paragraph
@@ -39,12 +44,18 @@ def load_taxonomy_tags() -> set[str]:
 
 
 def parse_tags(raw: str) -> list[str]:
+    if _lib_parse_tags is not None:
+        return _lib_parse_tags(raw)
     return [t.strip().lower() for t in raw.strip("[] ").split(",") if t.strip()]
 
 
 def parse_frontmatter(text: str) -> dict[str, str] | None:
     if not text.lstrip().startswith("---"):
         return None
+    if _lib_split_fm is not None:
+        # Normalize leading whitespace so shared splitter sees the fence.
+        fm, _ = _lib_split_fm(text.lstrip() if not text.startswith("---") else text)
+        return fm
     end = text.find("\n---", 3)
     if end == -1:
         return None

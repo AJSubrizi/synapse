@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Engines on `synapse_lib`** — validate/dedup/metrics/search prefer the shared
+  frontmatter helpers (local fallbacks kept). Engine **0.5.2**.
+- **Demo text capture** — `scripts/capture-demo-text.sh` (+ `record-demo.sh` fallback)
+  writes `docs/assets/synapse-demo.txt` when vhs/asciinema are missing.
+
 - **Shared `synapse_lib.py`** — common frontmatter/tokenize/iter_notes for engines.
 - **Auto catalog** — `lint`/`digest --write` regenerates `_meta/catalog.md` (index.md stays human).
 - **`synapse query --all`** — RRF fusion across named vaults (`SYNAPSE_QUERY_VAULTS` or `vaults/`).

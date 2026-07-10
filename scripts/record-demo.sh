@@ -21,9 +21,5 @@ if command -v asciinema >/dev/null 2>&1; then
   exit 0
 fi
 
-echo "Neither vhs nor asciinema found." >&2
-echo "  brew install vhs     # preferred — reads docs/demo.tape" >&2
-echo "  brew install asciinema" >&2
-echo "Falling back to a plain demo run:" >&2
-bash scripts/demo.sh
-exit 0
+echo "Neither vhs nor asciinema found — writing text transcript instead."
+exec bash "$ROOT/scripts/capture-demo-text.sh"

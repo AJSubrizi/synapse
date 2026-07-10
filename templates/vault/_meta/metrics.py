@@ -26,9 +26,19 @@ try:  # single source of truth for categories, with a test-time fallback
 except Exception:
     CONTENT_DIRS = ("concepts", "techniques", "projects", "skills",
                     "sources", "analysis", "people", "organizations", "journal")
+try:
+    from synapse_lib import split_frontmatter as _lib_split_fm
+except Exception:
+    _lib_split_fm = None
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
+    if _lib_split_fm is not None:
+        if not text.lstrip().startswith("---"):
+            return {}
+        src = text.lstrip() if not text.startswith("---") else text
+        fm, _ = _lib_split_fm(src)
+        return fm
     if not text.lstrip().startswith("---"):
         return {}
     end = text.find("\n---", 3)

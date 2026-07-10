@@ -1,0 +1,39 @@
+# Synapse demo transcript — 2026-07-10T11:36Z
+# Prefer: brew install vhs && ./scripts/record-demo.sh
+
+
+== 1. A fresh vault — Obsidian-compatible Markdown, no database ==
+vault:    /var/folders/f9/_g2pzm9j0s1gzsh8n30w64dm0000gn/T/tmp.FVVoHgKHG2/vault
+skills:   /var/folders/f9/_g2pzm9j0s1gzsh8n30w64dm0000gn/T/tmp.FVVoHgKHG2/vault/skills
+
+== 2. The agent learns something and writes an atomic note ==
+wrote concepts/rate-limit-fastapi.md
+
+== 3. Quality gate keeps the vault healthy ==
+== validate ==
+Pages analyzed: 8
+Errors: 0 | Warnings: 1
+  ! concepts/rate-limit-fastapi.md: not linked from index.md — add it to the catalog
+
+== dedup (candidates) ==
+Notes analyzed: 4
+Candidate duplicate pairs (threshold 0.5): 0
+  ok
+
+== skill deps ==
+  distill-after-work -> file-into-vault
+
+== retrieval index ==
+index: none (run `synapse index`)
+
+== catalog refresh ==
+wrote _meta/digest.md + _meta/catalog.md (4 notes)
+
+== 4. Build the offline BM25 retrieval index ==
+wrote _meta/retrieval.json (backend=bm25, 4 notes, fp=28f7be6355b7d572)
+
+== 5. Recall it later — by meaning, not exact words ==
+  2.458  concepts/rate-limit-fastapi.md
+  0.897  skills/distill-after-work.md
+
+== Done — your memory is just Markdown you own: /var/folders/f9/_g2pzm9j0s1gzsh8n30w64dm0000gn/T/tmp.FVVoHgKHG2/vault ==
